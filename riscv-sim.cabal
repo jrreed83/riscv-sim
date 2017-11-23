@@ -42,4 +42,4 @@ test-suite riscv-sim-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/riscv-sim
+  location: https://github.com/jrreed83/riscv-sim
