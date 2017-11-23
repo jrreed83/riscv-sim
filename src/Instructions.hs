@@ -8,21 +8,17 @@ import Data.Bits
 import Data.IORef 
 import qualified Data.Vector as V 
 
-(.<<.) :: (Bits a) => a -> Int -> a 
-(.<<.) x i = shiftL x i 
+(|<<|) :: (Bits a) => a -> Int -> a 
+(|<<|) x i = shiftL x i 
 
-(.>>.) :: (Bits a) => a -> Int -> a 
-(.>>.) x i = shiftR x i     
+(|>>|) :: (Bits a) => a -> Int -> a 
+(|>>|) x i = shiftR x i     
 ----------------------------------------------------------
 
-asWord16 :: (Integral a) => a -> W.Word16 
-asWord16 x = fromIntegral x
+type U32 = W.Word32 
 
-asWord8 :: (Integral a) => a -> W.Word8 
-asWord8 x = fromIntegral x
-
-asWord32 :: (Integral a) => a -> W.Word32 
-asWord32 x = fromIntegral x
+asU32 :: (Integral a) => a -> U32 
+asU32 x = fromIntegral x
 
 asInt :: (Integral a) => a -> Int 
 asInt x = fromIntegral x 
@@ -49,45 +45,45 @@ rparen = char ')'
 comments :: Parser String 
 comments = semicolon >> anyString
 
-u8 :: Parser W.Word8 
-u8 = integer >>= (\x -> return $ asWord8 x)
-
-u16 :: Parser W.Word16 
-u16 = integer >>= (\x -> return $ asWord16 x)
 
 u32 :: Parser W.Word32 
-u32 = integer >>= (\x -> return $ asWord32 x)
+u32 = integer >>= (\x -> return $ asU32 x)
 
 -- Register Stuff
-data Reg = X { regCode :: W.Word8 } 
+data Reg = X { ptr :: W.Word32 } 
          deriving (Show, Eq)
 
   
 -- Assembler temporary
-register :: Parser Reg
+register :: Parser U32
 register = do 
     _ <- string "x" 
-    i <- u8 
-    if i <= 31 then return $ X i else failure "Not a valid register"
+    i <- u32 
+    if i <= 31 then return i else failure "Not a valid register"
 
 --------------------------------------------------------------------------------
 
-data Rop = ADD | SUB | AND | OR | XOR deriving (Show,Eq)
+-- data Rop = ADD | SUB | AND | OR | XOR 
+--          deriving (Show,Eq)
 
-data Iop = ADDI | LD | STO deriving (Show,Eq)
+-- data Iop = ADDI | LD | STO 
+--          deriving (Show,Eq)
 
-data Immed = Immed W.Word32 deriving (Show, Eq)
+-- data Op  = Rop Rop 
+--          | Iop Iop 
+--          deriving (Show, Eq)
 
-data Shft = Shft W.Word8 
-            deriving (Show, Eq)
+-- data Immed = Immed W.Word32 
+--            deriving (Show, Eq)
 
-    -- Instruction Set 
-data Instruction = RType Rop Reg Reg Reg W.Word8
-                 | IType Iop Reg Reg     W.Word32
-                 | NOP 
-                 deriving (Show, Eq)
 
-add :: Parser Instruction 
+--     -- Instruction Set 
+-- data Instruction = RType Rop Reg Reg Reg 
+--                  | IType Iop Reg W.Word32 
+--                  | NOP 
+--                  deriving (Show, Eq)
+
+add :: Parser Encoding 
 add = do
     _  <- string "add"
     _  <- spaces 
@@ -96,49 +92,74 @@ add = do
     rt <- register 
     _  <- comma 
     rs <- register 
-    return $ RType ADD rd rt rs 0
+    return $ REncoding 33 rd 0 rt rs 0 
 
-                                    
+sub :: Parser Encoding 
+sub = do
+    _  <- string "sub"
+    _  <- spaces 
+    rd <- register
+    _  <- comma 
+    rt <- register 
+    _  <- comma 
+    rs <- register 
+    return $ REncoding 33 rd 0 rt rs 20                                     
 ----------------------------------------------------------------------------------
 
-    
-funCode :: Rop -> W.Word8 
-funCode _ = 0
-    
-encode :: Instruction -> W.Word32 
-encode NOP                        = 0
-encode (RType rop rd rs rt shft)  = 
-        (f .<<. 0  ) .|. 
-        (i .<<. 6  ) .|.
-        (t .<<. 11 ) .|. 
-        (s .<<. 16 ) .|.
-        (d .<<. 21 ) .|.
-        (o .<<. 26 )
-        where f = asWord32 $ funCode rop 
-              d = asWord32 $ regCode rd 
-              s = asWord32 $ regCode rs  
-              t = asWord32 $ regCode rt
-              i = asWord32 $ shft 
-              o = 0
-    -- pAddressMode = pAddrPreDec <|> pAddrPreInc <|> pAddrPostInc <|> pAddrPostDec <|> pAddrI <|> pAddrD <|> pData <|> pImmed
-    
-    -- data OpMode = Byte | Word | Long deriving (Show)
-
-    -- encOpMode :: OpMode -> W.Word8 
-    -- encOpMode Byte = 0 
-    -- encOpMode Word = 1 
-    -- encOpMode Long = 2 
-
-    -- data Instruction = MOVE OpMode AddressMode AddressMode
-    --                  | ADD  OpMode AddressMode AddressMode
-    --                  | NOP
-    --                  | STOP
-    --                  deriving (Show)
+data Encoding = REncoding { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, rt  :: !U32, f7 :: !U32 } 
+              | IEncoding { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, i11 :: !U32             }
+              deriving Show
  
+serialize :: Encoding -> U32 
+serialize (REncoding op rd f3 rs rt f7)  = 
+          (op |<<| 0  ) .|. 
+          (rd |<<| 7  ) .|.
+          (f3 |<<| 12 ) .|. 
+          (rs |<<| 15 ) .|.
+          (rt |<<| 20 ) .|.
+          (f7 |<<| 25 ) 
+serialize (IEncoding op rd f3 rs i11) = 
+          (op  |<<| 0 ) .|. 
+          (rd  |<<| 7 ) .|.
+          (f3  |<<| 12) .|.
+          (rs  |<<| 15) .|. 
+          (i11 |<<| 20)
 
-
-
-
+showBitPattern :: U32 -> String 
+showBitPattern x =
+    show ((x |>>| 31) .&. 1) ++  
+    show ((x |>>| 30) .&. 1) ++  
+    show ((x |>>| 29) .&. 1) ++  
+    show ((x |>>| 28) .&. 1) ++    
+    show ((x |>>| 27) .&. 1) ++  
+    show ((x |>>| 26) .&. 1) ++  
+    show ((x |>>| 25) .&. 1) ++  
+    show ((x |>>| 24) .&. 1) ++    
+    show ((x |>>| 23) .&. 1) ++  
+    show ((x |>>| 22) .&. 1) ++  
+    show ((x |>>| 21) .&. 1) ++  
+    show ((x |>>| 20) .&. 1) ++    
+    show ((x |>>| 19) .&. 1) ++  
+    show ((x |>>| 18) .&. 1) ++  
+    show ((x |>>| 17) .&. 1) ++  
+    show ((x |>>| 16) .&. 1) ++  
+    show ((x |>>| 15) .&. 1) ++  
+    show ((x |>>| 14) .&. 1) ++  
+    show ((x |>>| 13) .&. 1) ++  
+    show ((x |>>| 12) .&. 1) ++    
+    show ((x |>>| 11) .&. 1) ++  
+    show ((x |>>| 10) .&. 1) ++  
+    show ((x |>>| 9 ) .&. 1) ++  
+    show ((x |>>| 8 ) .&. 1) ++    
+    show ((x |>>| 7 ) .&. 1) ++  
+    show ((x |>>| 6 ) .&. 1) ++  
+    show ((x |>>| 5 ) .&. 1) ++  
+    show ((x |>>| 4 ) .&. 1) ++    
+    show ((x |>>| 3 ) .&. 1) ++  
+    show ((x |>>| 2 ) .&. 1) ++  
+    show ((x |>>| 1 ) .&. 1) ++  
+    show ((x |>>| 0 ) .&. 1)             
+ 
 
 
     -- type Memory = V.Vector W.Word8 
