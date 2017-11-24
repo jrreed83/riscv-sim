@@ -8,6 +8,11 @@ import Data.Bits
 import Data.IORef 
 import qualified Data.Vector as V 
 
+-- | Vector update
+(//) = (V.//)
+
+(!) = (V.!)
+
 (|<<|) :: (Bits a) => a -> Int -> a 
 (|<<|) x i = shiftL x i 
 
@@ -15,7 +20,10 @@ import qualified Data.Vector as V
 (|>>|) x i = shiftR x i     
 ----------------------------------------------------------
 
+type U8  = W.Word8 
+type U16 = W.Word16
 type U32 = W.Word32 
+type U64 = W.Word64 
 
 asU32 :: (Integral a) => a -> U32 
 asU32 x = fromIntegral x
@@ -83,8 +91,8 @@ register = do
 --                  | NOP 
 --                  deriving (Show, Eq)
 
-add :: Parser Encoding 
-add = do
+pAdd :: Parser Instruction 
+pAdd = do
     _  <- string "add"
     _  <- spaces 
     rd <- register
@@ -92,10 +100,10 @@ add = do
     rt <- register 
     _  <- comma 
     rs <- register 
-    return $ REncoding 33 rd 0 rt rs 0 
+    return $ R 33 rd 0 rt rs 0 
 
-sub :: Parser Encoding 
-sub = do
+pSub :: Parser Instruction
+pSub = do
     _  <- string "sub"
     _  <- spaces 
     rd <- register
@@ -103,30 +111,38 @@ sub = do
     rt <- register 
     _  <- comma 
     rs <- register 
-    return $ REncoding 33 rd 0 rt rs 20                                     
+    return $ R 33 rd 0 rt rs 20                                     
 ----------------------------------------------------------------------------------
 
-data Encoding = REncoding { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, rt  :: !U32, f7 :: !U32 } 
-              | IEncoding { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, i11 :: !U32             }
-              deriving Show
+data Instruction = R { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, rt  :: !U32, f7 :: !U32 } 
+                 | I { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, i11 :: !U32             }
+                 deriving Show
  
-serialize :: Encoding -> U32 
-serialize (REncoding op rd f3 rs rt f7)  = 
-          (op |<<| 0  ) .|. 
-          (rd |<<| 7  ) .|.
-          (f3 |<<| 12 ) .|. 
-          (rs |<<| 15 ) .|.
-          (rt |<<| 20 ) .|.
-          (f7 |<<| 25 ) 
-serialize (IEncoding op rd f3 rs i11) = 
-          (op  |<<| 0 ) .|. 
-          (rd  |<<| 7 ) .|.
-          (f3  |<<| 12) .|.
-          (rs  |<<| 15) .|. 
-          (i11 |<<| 20)
+encode :: Instruction -> U32 
+encode (R op rd f3 rs rt f7) = 
+       (op |<<| 0  ) .|. 
+       (rd |<<| 7  ) .|.
+       (f3 |<<| 12 ) .|. 
+       (rs |<<| 15 ) .|.
+       (rt |<<| 20 ) .|.
+       (f7 |<<| 25 ) 
 
-showBitPattern :: U32 -> String 
-showBitPattern x =
+encode (I op rd f3 rs i11) = 
+       (op  |<<| 0 ) .|. 
+       (rd  |<<| 7 ) .|.
+       (f3  |<<| 12) .|.
+       (rs  |<<| 15) .|. 
+       (i11 |<<| 20)
+
+decode :: U32 -> Instruction 
+decode x = 
+    let op = (x |>>|  0) .&. 0x3F
+        f3 = (x |>>| 12) .&. 0x07
+        f7 = (x |>>| 25) .&. 0x7F
+    in  R op 0 f3 0 0 f7
+
+bitPattern :: U32 -> String 
+bitPattern x =
     show ((x |>>| 31) .&. 1) ++  
     show ((x |>>| 30) .&. 1) ++  
     show ((x |>>| 29) .&. 1) ++  
@@ -159,8 +175,27 @@ showBitPattern x =
     show ((x |>>| 2 ) .&. 1) ++  
     show ((x |>>| 1 ) .&. 1) ++  
     show ((x |>>| 0 ) .&. 1)             
- 
 
+
+data State = State { registers :: V.Vector U32 
+                   , ip        :: U32
+                   } deriving (Show)
+
+initState :: State 
+initState = State r 0
+            where r = V.replicate 32 (0::U32)
+
+add :: Instruction -> State -> State 
+add (R _ rd _ rs rt _ ) state =  
+    let registers' = registers state
+        id         = asInt rd 
+        is         = asInt rs 
+        it         = asInt rt  
+        xs         = registers' ! is 
+        xt         = registers' ! it  
+        xd         = xs + xt
+        ip'        = (ip state) + 1        
+    in  State  (registers' // [(id,xd)]) ip'
 
     -- type Memory = V.Vector W.Word8 
     
