@@ -139,7 +139,9 @@ decode x =
     let op = (x |>>|  0) .&. 0x3F
         f3 = (x |>>| 12) .&. 0x07
         f7 = (x |>>| 25) .&. 0x7F
-    in  R op 0 f3 0 0 f7
+    in  case op of 
+             33 -> R op 0 f3 0 0 f7
+             8  -> I op 0 f3 0 0
 
 bitPattern :: U32 -> String 
 bitPattern x =
