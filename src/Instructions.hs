@@ -100,7 +100,7 @@ pAdd = do
     rt <- register 
     _  <- comma 
     rs <- register 
-    return $ R 33 rd 0 rt rs 0 
+    return $ R 0x33 rd 0 rt rs 0 
 
 pSub :: Parser Instruction
 pSub = do
@@ -111,13 +111,23 @@ pSub = do
     rt <- register 
     _  <- comma 
     rs <- register 
-    return $ R 33 rd 0 rt rs 20                                     
+    return $ R 0x33 rd 0 rt rs 0x20                                     
 ----------------------------------------------------------------------------------
 
 data Instruction = R { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, rt  :: !U32, f7 :: !U32 } 
-                 | I { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, i11 :: !U32             }
+                 | I { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, i12 :: !U32             }
+                 | S { op :: !U32, i5 :: !U32, f3 :: !U32, rs :: !U32, rt  :: !U32, i6 :: !U32}
                  deriving Show
  
+data InstructionType = RType | SType | IType 
+                       deriving (Show,Eq)
+
+getInstType :: U32 -> InstructionType 
+getInstType 0x33 = RType
+getInstType 0x3B = RType 
+getInstType 0x03 = IType 
+getInstType 0x0F = IType
+
 encode :: Instruction -> U32 
 encode (R op rd f3 rs rt f7) = 
        (op |<<| 0  ) .|. 
@@ -127,21 +137,26 @@ encode (R op rd f3 rs rt f7) =
        (rt |<<| 20 ) .|.
        (f7 |<<| 25 ) 
 
-encode (I op rd f3 rs i11) = 
+encode (I op rd f3 rs i12) = 
        (op  |<<| 0 ) .|. 
        (rd  |<<| 7 ) .|.
        (f3  |<<| 12) .|.
        (rs  |<<| 15) .|. 
-       (i11 |<<| 20)
+       (i12 |<<| 20)
 
 decode :: U32 -> Instruction 
 decode x = 
     let op = (x |>>|  0) .&. 0x3F
         f3 = (x |>>| 12) .&. 0x07
-        f7 = (x |>>| 25) .&. 0x7F
-    in  case op of 
-             33 -> R op 0 f3 0 0 f7
-             8  -> I op 0 f3 0 0
+    in  case (getInstType op) of 
+             RType -> decodeR x --R op 0 f3 0 0 0
+             IType -> decodeI x --I op 0 f3 0 0
+
+decodeR :: U32 -> Instruction 
+decodeR x = R 0 0 0 0 0 0
+
+decodeI :: U32 -> Instruction 
+decodeI x = I 0 0 0 0 0 
 
 bitPattern :: U32 -> String 
 bitPattern x =
