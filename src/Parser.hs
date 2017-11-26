@@ -90,11 +90,8 @@ label msg pa =
 
 andThen :: Parser a -> Parser b -> Parser (a,b)
 andThen pa pb = pa >>= (\x -> 
-                    pb >>= (\y -> 
-                    return (x,y)))
-    --andThen pa pb = do { x <- pa
-    --                   ; y <- pb
-    --                   ; return (x,y) }
+                pb >>= (\y -> 
+                return (x,y)))
 
 (.>>.) :: Parser a -> Parser b -> Parser (a,b) 
 (.>>.) = andThen
@@ -159,19 +156,19 @@ bind pa f =
 
 apply :: Parser (a -> b) -> Parser a -> Parser b
 apply pf pa = pf >>= (\f -> 
-                  pa >>= (\x -> 
-                  return $ f x))
+              pa >>= (\x -> 
+              return $ f x))
     
 
 (>>.) :: Parser a -> Parser b -> Parser b 
-pa >>. pb = do { _  <- pa 
-                   ; xb <- pb
-                   ; return xb }
+pa >>. pb = pa >>= (\xa -> 
+            pb >>= (\xb -> 
+            return xb ))
 
 (.>>) :: Parser a -> Parser b -> Parser a 
-pa .>> pb = do { xa <- pa 
-                   ; _  <- pb
-                   ; return xa }
+pa .>> pb = pa >>= (\xa -> 
+            pb >>= (\xb -> 
+            return xa ))
 
 failure :: String -> Parser a
 failure msg = Parser $ \_ -> Failure msg 

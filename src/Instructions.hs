@@ -38,7 +38,7 @@ eol :: Parser String
 eol = (string "\n") <|> spaces
 
 comma :: Parser Char 
-comma = char ',' 
+comma = (char ',') 
 
 semicolon :: Parser Char 
 semicolon = char ';' 
@@ -93,70 +93,129 @@ register = do
 
 pAdd :: Parser Instruction 
 pAdd = do
-    _  <- string "add"
-    _  <- spaces 
-    rd <- register
-    _  <- comma 
-    rt <- register 
-    _  <- comma 
-    rs <- register 
-    return $ R 0x33 rd 0 rt rs 0 
+    _   <- string "add"
+    _   <- spaces 
+    rd  <- register
+    _   <- comma 
+    rs1 <- register 
+    _   <- comma 
+    rs2 <- register 
+    return $ R 0x33 rd 0 rs1 rs2 0 
 
-pSub :: Parser Instruction
-pSub = do
-    _  <- string "sub"
-    _  <- spaces 
-    rd <- register
-    _  <- comma 
-    rt <- register 
-    _  <- comma 
-    rs <- register 
-    return $ R 0x33 rd 0 rt rs 0x20                                     
+pSubtract :: Parser Instruction
+pSubtract = do
+    _   <- string "sub"
+    _   <- spaces 
+    rd  <- register
+    _   <- comma 
+    rs1 <- register 
+    _   <- comma 
+    rs2 <- register 
+    return $ R 0x33 rd 0 rs1 rs2 0x20                                     
+
+pStoreByte :: Parser Instruction 
+pStoreByte = do
+    _   <- string "sb"
+    _   <- spaces 
+    rs1 <- register 
+    _   <- comma 
+    imm <- u32 
+    _   <- lparen
+    rs2 <- register 
+    _   <- rparen 
+    return $ S 0x23 (trim5 imm) 0 rs1 rs2 (trim7 (imm |>>| 5))     
 ----------------------------------------------------------------------------------
 
-data Instruction = R { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, rt  :: !U32, f7 :: !U32 } 
-                 | I { op :: !U32, rd :: !U32, f3 :: !U32, rs :: !U32, i12 :: !U32             }
-                 | S { op :: !U32, i5 :: !U32, f3 :: !U32, rs :: !U32, rt  :: !U32, i6 :: !U32}
+data Instruction = R { op :: !U32, rd   :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, f7   :: !U32 } 
+                 | I { op :: !U32, rd   :: !U32, f3 :: !U32, rs1 :: !U32, imm :: !U32               }
+                 | S { op :: !U32, imml :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, immu :: !U32 }
+                 | SB{ op :: !U32, imml :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, immu :: !U32 }
                  deriving Show
  
-data InstructionType = RType | SType | IType 
+data InstructionType = RType | SType | IType | SBType
                        deriving (Show,Eq)
 
-getInstType :: U32 -> InstructionType 
-getInstType 0x33 = RType
-getInstType 0x3B = RType 
-getInstType 0x03 = IType 
-getInstType 0x0F = IType
+instType :: U32 -> InstructionType 
+instType 0x33 = RType
+instType 0x3B = RType 
+instType 0x03 = IType 
+instType 0x0F = IType
+instType 0x67 = IType
+instType 0x73 = IType
+instType 0x23 = SType
+instType 0x63 = SBType
 
 encode :: Instruction -> U32 
-encode (R op rd f3 rs rt f7) = 
-       (op |<<| 0  ) .|. 
-       (rd |<<| 7  ) .|.
-       (f3 |<<| 12 ) .|. 
-       (rs |<<| 15 ) .|.
-       (rt |<<| 20 ) .|.
-       (f7 |<<| 25 ) 
+encode (R op rd f3 rs1 rs2 f7) = 
+     (op  |<<| 0  ) .|. 
+     (rd  |<<| 7  ) .|.
+     (f3  |<<| 12 ) .|. 
+     (rs1 |<<| 15 ) .|.
+     (rs2 |<<| 20 ) .|.
+     (f7  |<<| 25 ) 
 
-encode (I op rd f3 rs i12) = 
-       (op  |<<| 0 ) .|. 
-       (rd  |<<| 7 ) .|.
-       (f3  |<<| 12) .|.
-       (rs  |<<| 15) .|. 
-       (i12 |<<| 20)
+encode (I op rd f3 rs imm) = 
+     (op  |<<| 0 ) .|. 
+     (rd  |<<| 7 ) .|.
+     (f3  |<<| 12) .|.
+     (rs  |<<| 15) .|. 
+     (imm |<<| 20)
+
+encode (S op imml f3 rs1 rs2 immu) = 
+     (op   |<<| 0 ) .|. 
+     (imml |<<| 7 ) .|.
+     (f3   |<<| 12) .|.
+     (rs1  |<<| 15) .|. 
+     (rs2  |<<| 20) .|. 
+     (immu |<<| 25)
 
 decode :: U32 -> Instruction 
 decode x = 
-    let op = (x |>>|  0) .&. 0x3F
-        f3 = (x |>>| 12) .&. 0x07
-    in  case (getInstType op) of 
+    let op = trim7 (x |>>|  0) 
+    in  case (instType op) of 
              RType -> decodeR x --R op 0 f3 0 0 0
              IType -> decodeI x --I op 0 f3 0 0
+             SType -> decodeS x 
+
+trim1 :: U32 -> U32 
+trim1  x = x .&. 0x00000001 
+trim2  x = x .&. 0x00000003 
+trim3  x = x .&. 0x00000007 
+trim4  x = x .&. 0x0000000F 
+trim5  x = x .&. 0x0000001F 
+trim6  x = x .&. 0x0000003F 
+trim7  x = x .&. 0x0000007F 
+trim8  x = x .&. 0x000000FF 
+trim9  x = x .&. 0x000001FF
+trim11 x = x .&. 0x000007FF
+trim19 x = x .&. 0x0007FFFF
 
 decodeR :: U32 -> Instruction 
-decodeR x = R 0 0 0 0 0 0
+decodeR x = R op rd f3 rs1 rs2 f7
+            where op  = trim7 (x |>>| 0 )
+                  rd  = trim5 (x |>>| 7 )
+                  f3  = trim3 (x |>>| 12)
+                  rs1 = trim5 (x |>>| 15)
+                  rs2 = trim5 (x |>>| 20)
+                  f7  = trim6 (x |>>| 25)
 
 decodeI :: U32 -> Instruction 
-decodeI x = I 0 0 0 0 0 
+decodeI x = I op rd f3 rs1 imm 
+            where op  = trim7  (x |>>| 0 )
+                  rd  = trim5  (x |>>| 7 )
+                  f3  = trim3  (x |>>| 12)
+                  rs1 = trim5  (x |>>| 15)
+                  imm = trim11 (x |>>| 20)
+
+decodeS :: U32 -> Instruction
+decodeS x = S op imml f3 rs1 rs2 immu
+            where op   = trim7 (x |>>| 0 )
+                  imml = trim5 (x |>>| 7 )
+                  f3   = trim3 (x |>>| 12)
+                  rs1  = trim5 (x |>>| 15)
+                  rs2  = trim5 (x |>>| 20)
+                  immu = trim6 (x |>>| 25)
+
 
 bitPattern :: U32 -> String 
 bitPattern x =
