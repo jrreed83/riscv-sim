@@ -7,6 +7,7 @@ import qualified Data.Word as W
 import Data.Bits 
 import Data.IORef 
 import qualified Data.Vector as V 
+import Text.Printf 
 
 -- | Vector update
 (//) = (V.//)
@@ -123,7 +124,43 @@ pStoreByte = do
     _   <- lparen
     rs2 <- register 
     _   <- rparen 
-    return $ S 0x23 (trim5 imm) 0 rs1 rs2 (trim7 (imm |>>| 5))     
+    let imml = trim5 imm 
+    let immu = trim7 (imm |>>| 5) 
+    let op   = 0x23
+    let f3   = 0x00
+    return $ S op imml f3 rs1 rs2 immu    
+    
+pStoreHalfWord :: Parser Instruction 
+pStoreHalfWord = do
+    _   <- string "sh"
+    _   <- spaces 
+    rs1 <- register 
+    _   <- comma 
+    imm <- u32 
+    _   <- lparen
+    rs2 <- register 
+    _   <- rparen 
+    let imml = trim5 imm 
+    let immu = trim7 (imm |>>| 5)
+    let op   = 0x23 
+    let f3   = 0x01
+    return $ S op imml f3 rs1 rs2 immu     
+
+pStoreWord :: Parser Instruction 
+pStoreWord = do
+    _   <- string "sw"
+    _   <- spaces 
+    rs1 <- register 
+    _   <- comma 
+    imm <- u32 
+    _   <- lparen
+    rs2 <- register 
+    _   <- rparen 
+    let imml = trim5 imm 
+    let immu = trim7 (imm |>>| 5)
+    let op   = 0x23 
+    let f3   = 0x02
+    return $ S op imml f3 rs1 rs2 immu     
 ----------------------------------------------------------------------------------
 
 data Instruction = R { op :: !U32, rd   :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, f7   :: !U32 } 
@@ -178,14 +215,29 @@ decode x =
              SType -> decodeS x 
 
 trim1 :: U32 -> U32 
-trim1  x = x .&. 0x00000001 
-trim2  x = x .&. 0x00000003 
-trim3  x = x .&. 0x00000007 
-trim4  x = x .&. 0x0000000F 
-trim5  x = x .&. 0x0000001F 
-trim6  x = x .&. 0x0000003F 
+trim1 x = x .&. 0x00000001 
+
+trim2 :: U32 -> U32 
+trim2 x = x .&. 0x00000003
+
+trim3 :: U32 -> U32
+trim3 x = x .&. 0x00000007 
+
+trim4 :: U32 -> U32
+trim4 x = x .&. 0x0000000F 
+
+trim5 :: U32 -> U32
+trim5 x = x .&. 0x0000001F 
+
+trim6 :: U32 -> U32
+trim6 x = x .&. 0x0000003F 
+
+trim7 :: U32 -> U32
 trim7  x = x .&. 0x0000007F 
+
+trim8 :: U32 -> U32
 trim8  x = x .&. 0x000000FF 
+
 trim9  x = x .&. 0x000001FF
 trim11 x = x .&. 0x000007FF
 trim19 x = x .&. 0x0007FFFF
