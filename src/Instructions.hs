@@ -8,17 +8,22 @@ import Data.Bits
 import Data.IORef 
 import qualified Data.Vector as V 
 import Text.Printf 
+import Foreign
+import Foreign.C.Types 
+
+foreign import ccall "hello"
+  c_hello :: IO () 
 
 -- | Vector update
 (//) = (V.//)
 
 (!) = (V.!)
 
-(|<<|) :: (Bits a) => a -> Int -> a 
-(|<<|) x i = shiftL x i 
+(.<<.) :: (Bits a) => a -> Int -> a 
+(.<<.) x i = shiftL x i 
 
-(|>>|) :: (Bits a) => a -> Int -> a 
-(|>>|) x i = shiftR x i     
+(.>>.) :: (Bits a) => a -> Int -> a 
+(.>>.) x i = shiftR x i     
 ----------------------------------------------------------
 
 type U8  = W.Word8 
@@ -125,7 +130,7 @@ pStoreByte = do
     rs2 <- register 
     _   <- rparen 
     let imml = trim5 imm 
-    let immu = trim7 (imm |>>| 5) 
+    let immu = trim7 (imm .>>. 5) 
     let op   = 0x23
     let f3   = 0x00
     return $ S op imml f3 rs1 rs2 immu    
@@ -141,7 +146,7 @@ pStoreHalfWord = do
     rs2 <- register 
     _   <- rparen 
     let imml = trim5 imm 
-    let immu = trim7 (imm |>>| 5)
+    let immu = trim7 (imm .>>. 5)
     let op   = 0x23 
     let f3   = 0x01
     return $ S op imml f3 rs1 rs2 immu     
@@ -157,17 +162,89 @@ pStoreWord = do
     rs2 <- register 
     _   <- rparen 
     let imml = trim5 imm 
-    let immu = trim7 (imm |>>| 5)
+    let immu = trim7 (imm .>>. 5)
     let op   = 0x23 
     let f3   = 0x02
-    return $ S op imml f3 rs1 rs2 immu     
+    return $ S op imml f3 rs1 rs2 immu  
+    
+pStoreDoubleWord :: Parser Instruction 
+pStoreDoubleWord = do
+    _   <- string "sd"
+    _   <- spaces 
+    rs1 <- register 
+    _   <- comma 
+    imm <- u32 
+    _   <- lparen
+    rs2 <- register 
+    _   <- rparen 
+    let imml = trim5 imm 
+    let immu = trim7 (imm .>>. 5)
+    let op   = 0x23 
+    let f3   = 0x03
+    return $ S op imml f3 rs1 rs2 immu    
+
+pLoadByte :: Parser Instruction
+pLoadByte = do
+    _   <- string "lb"
+    _   <- spaces 
+    rd  <- register 
+    _   <- comma 
+    imm <- u32 
+    _   <- lparen
+    rs1 <- register 
+    _   <- rparen 
+    let op   = 0x03 
+    let f3   = 0x00
+    return $ I op rd f3 rs1 imm       
+
+pLoadHalfWord :: Parser Instruction
+pLoadHalfWord = do
+    _   <- string "lh"
+    _   <- spaces 
+    rd  <- register 
+    _   <- comma 
+    imm <- u32 
+    _   <- lparen
+    rs1 <- register 
+    _   <- rparen 
+    let op   = 0x03 
+    let f3   = 0x01
+    return $ I op rd f3 rs1 imm 
+    
+pLoadWord :: Parser Instruction
+pLoadWord = do
+    _   <- string "lw"
+    _   <- spaces 
+    rd  <- register 
+    _   <- comma 
+    imm <- u32 
+    _   <- lparen
+    rs1 <- register 
+    _   <- rparen 
+    let op   = 0x03 
+    let f3   = 0x02
+    return $ I op rd f3 rs1 imm  
+    
+pLoadDoubleWord :: Parser Instruction
+pLoadDoubleWord = do
+    _   <- string "ld"
+    _   <- spaces 
+    rd  <- register 
+    _   <- comma 
+    imm <- u32 
+    _   <- lparen
+    rs1 <- register 
+    _   <- rparen 
+    let op   = 0x03 
+    let f3   = 0x03
+    return $ I op rd f3 rs1 imm      
 ----------------------------------------------------------------------------------
 
 data Instruction = R { op :: !U32, rd   :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, f7   :: !U32 } 
                  | I { op :: !U32, rd   :: !U32, f3 :: !U32, rs1 :: !U32, imm :: !U32               }
                  | S { op :: !U32, imml :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, immu :: !U32 }
                  | SB{ op :: !U32, imml :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, immu :: !U32 }
-                 deriving Show
+                 deriving (Show, Eq)
  
 data InstructionType = RType | SType | IType | SBType
                        deriving (Show,Eq)
@@ -184,31 +261,31 @@ instType 0x63 = SBType
 
 encode :: Instruction -> U32 
 encode (R op rd f3 rs1 rs2 f7) = 
-     (op  |<<| 0  ) .|. 
-     (rd  |<<| 7  ) .|.
-     (f3  |<<| 12 ) .|. 
-     (rs1 |<<| 15 ) .|.
-     (rs2 |<<| 20 ) .|.
-     (f7  |<<| 25 ) 
+     (op  .<<. 0  ) .|. 
+     (rd  .<<. 7  ) .|.
+     (f3  .<<. 12 ) .|. 
+     (rs1 .<<. 15 ) .|.
+     (rs2 .<<. 20 ) .|.
+     (f7  .<<. 25 ) 
 
 encode (I op rd f3 rs imm) = 
-     (op  |<<| 0 ) .|. 
-     (rd  |<<| 7 ) .|.
-     (f3  |<<| 12) .|.
-     (rs  |<<| 15) .|. 
-     (imm |<<| 20)
+     (op  .<<. 0 ) .|. 
+     (rd  .<<. 7 ) .|.
+     (f3  .<<. 12) .|.
+     (rs  .<<. 15) .|. 
+     (imm .<<. 20)
 
 encode (S op imml f3 rs1 rs2 immu) = 
-     (op   |<<| 0 ) .|. 
-     (imml |<<| 7 ) .|.
-     (f3   |<<| 12) .|.
-     (rs1  |<<| 15) .|. 
-     (rs2  |<<| 20) .|. 
-     (immu |<<| 25)
+     (op   .<<. 0 ) .|. 
+     (imml .<<. 7 ) .|.
+     (f3   .<<. 12) .|.
+     (rs1  .<<. 15) .|. 
+     (rs2  .<<. 20) .|. 
+     (immu .<<. 25)
 
 decode :: U32 -> Instruction 
 decode x = 
-    let op = trim7 (x |>>|  0) 
+    let op = trim7 (x .>>.  0) 
     in  case (instType op) of 
              RType -> decodeR x --R op 0 f3 0 0 0
              IType -> decodeI x --I op 0 f3 0 0
@@ -238,71 +315,76 @@ trim7  x = x .&. 0x0000007F
 trim8 :: U32 -> U32
 trim8  x = x .&. 0x000000FF 
 
+trim9 :: U32 -> U32
 trim9  x = x .&. 0x000001FF
+
+trim11 :: U32 -> U32
 trim11 x = x .&. 0x000007FF
+
+trim19 :: U32 -> U32
 trim19 x = x .&. 0x0007FFFF
 
 decodeR :: U32 -> Instruction 
 decodeR x = R op rd f3 rs1 rs2 f7
-            where op  = trim7 (x |>>| 0 )
-                  rd  = trim5 (x |>>| 7 )
-                  f3  = trim3 (x |>>| 12)
-                  rs1 = trim5 (x |>>| 15)
-                  rs2 = trim5 (x |>>| 20)
-                  f7  = trim6 (x |>>| 25)
+            where op  = trim7 (x .>>. 0 )
+                  rd  = trim5 (x .>>. 7 )
+                  f3  = trim3 (x .>>. 12)
+                  rs1 = trim5 (x .>>. 15)
+                  rs2 = trim5 (x .>>. 20)
+                  f7  = trim6 (x .>>. 25)
 
 decodeI :: U32 -> Instruction 
 decodeI x = I op rd f3 rs1 imm 
-            where op  = trim7  (x |>>| 0 )
-                  rd  = trim5  (x |>>| 7 )
-                  f3  = trim3  (x |>>| 12)
-                  rs1 = trim5  (x |>>| 15)
-                  imm = trim11 (x |>>| 20)
+            where op  = trim7  (x .>>. 0 )
+                  rd  = trim5  (x .>>. 7 )
+                  f3  = trim3  (x .>>. 12)
+                  rs1 = trim5  (x .>>. 15)
+                  imm = trim11 (x .>>. 20)
 
 decodeS :: U32 -> Instruction
 decodeS x = S op imml f3 rs1 rs2 immu
-            where op   = trim7 (x |>>| 0 )
-                  imml = trim5 (x |>>| 7 )
-                  f3   = trim3 (x |>>| 12)
-                  rs1  = trim5 (x |>>| 15)
-                  rs2  = trim5 (x |>>| 20)
-                  immu = trim6 (x |>>| 25)
+            where op   = trim7 (x .>>. 0 )
+                  imml = trim5 (x .>>. 7 )
+                  f3   = trim3 (x .>>. 12)
+                  rs1  = trim5 (x .>>. 15)
+                  rs2  = trim5 (x .>>. 20)
+                  immu = trim6 (x .>>. 25)
 
 
 bitPattern :: U32 -> String 
 bitPattern x =
-    show ((x |>>| 31) .&. 1) ++  
-    show ((x |>>| 30) .&. 1) ++  
-    show ((x |>>| 29) .&. 1) ++  
-    show ((x |>>| 28) .&. 1) ++    
-    show ((x |>>| 27) .&. 1) ++  
-    show ((x |>>| 26) .&. 1) ++  
-    show ((x |>>| 25) .&. 1) ++  
-    show ((x |>>| 24) .&. 1) ++    
-    show ((x |>>| 23) .&. 1) ++  
-    show ((x |>>| 22) .&. 1) ++  
-    show ((x |>>| 21) .&. 1) ++  
-    show ((x |>>| 20) .&. 1) ++    
-    show ((x |>>| 19) .&. 1) ++  
-    show ((x |>>| 18) .&. 1) ++  
-    show ((x |>>| 17) .&. 1) ++  
-    show ((x |>>| 16) .&. 1) ++  
-    show ((x |>>| 15) .&. 1) ++  
-    show ((x |>>| 14) .&. 1) ++  
-    show ((x |>>| 13) .&. 1) ++  
-    show ((x |>>| 12) .&. 1) ++    
-    show ((x |>>| 11) .&. 1) ++  
-    show ((x |>>| 10) .&. 1) ++  
-    show ((x |>>| 9 ) .&. 1) ++  
-    show ((x |>>| 8 ) .&. 1) ++    
-    show ((x |>>| 7 ) .&. 1) ++  
-    show ((x |>>| 6 ) .&. 1) ++  
-    show ((x |>>| 5 ) .&. 1) ++  
-    show ((x |>>| 4 ) .&. 1) ++    
-    show ((x |>>| 3 ) .&. 1) ++  
-    show ((x |>>| 2 ) .&. 1) ++  
-    show ((x |>>| 1 ) .&. 1) ++  
-    show ((x |>>| 0 ) .&. 1)             
+    show ((x .>>. 31) .&. 1) ++  
+    show ((x .>>. 30) .&. 1) ++  
+    show ((x .>>. 29) .&. 1) ++  
+    show ((x .>>. 28) .&. 1) ++    
+    show ((x .>>. 27) .&. 1) ++  
+    show ((x .>>. 26) .&. 1) ++  
+    show ((x .>>. 25) .&. 1) ++  
+    show ((x .>>. 24) .&. 1) ++    
+    show ((x .>>. 23) .&. 1) ++  
+    show ((x .>>. 22) .&. 1) ++  
+    show ((x .>>. 21) .&. 1) ++  
+    show ((x .>>. 20) .&. 1) ++    
+    show ((x .>>. 19) .&. 1) ++  
+    show ((x .>>. 18) .&. 1) ++  
+    show ((x .>>. 17) .&. 1) ++  
+    show ((x .>>. 16) .&. 1) ++  
+    show ((x .>>. 15) .&. 1) ++  
+    show ((x .>>. 14) .&. 1) ++  
+    show ((x .>>. 13) .&. 1) ++  
+    show ((x .>>. 12) .&. 1) ++    
+    show ((x .>>. 11) .&. 1) ++  
+    show ((x .>>. 10) .&. 1) ++  
+    show ((x .>>. 9 ) .&. 1) ++  
+    show ((x .>>. 8 ) .&. 1) ++    
+    show ((x .>>. 7 ) .&. 1) ++  
+    show ((x .>>. 6 ) .&. 1) ++  
+    show ((x .>>. 5 ) .&. 1) ++  
+    show ((x .>>. 4 ) .&. 1) ++    
+    show ((x .>>. 3 ) .&. 1) ++  
+    show ((x .>>. 2 ) .&. 1) ++  
+    show ((x .>>. 1 ) .&. 1) ++  
+    show ((x .>>. 0 ) .&. 1)             
 
 
 data State = State { registers :: V.Vector U32 

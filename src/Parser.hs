@@ -8,10 +8,10 @@ module Parser
     , digit
     , anyDigit
     , integer
-    , (.>>.)
+    , (~>>~)
     , (<|>)
-    , (.>>)
-    , (>>.)
+    , (~>>)
+    , (>>~)
     , many
     , many1
     , exactlyN
@@ -47,7 +47,7 @@ instance Applicative Parser where
 
 instance Monad Parser where 
     pa >>= f = bind pa f 
-    pa >> pb = pa >>. pb
+    pa >> pb = pa >>~ pb
     return x = success x 
 
 char :: Char -> Parser Char
@@ -93,8 +93,8 @@ andThen pa pb = pa >>= (\x ->
                 pb >>= (\y -> 
                 return (x,y)))
 
-(.>>.) :: Parser a -> Parser b -> Parser (a,b) 
-(.>>.) = andThen
+(~>>~) :: Parser a -> Parser b -> Parser (a,b) 
+(~>>~) = andThen
 
 alt :: Parser a -> Parser a -> Parser a 
 alt p1 p2 = 
@@ -115,14 +115,9 @@ slice p =
                                         in  Success (take n s) r
 
 map2 :: ((a,b) -> c) -> Parser a -> Parser b -> Parser c
---    map2 f pa pb = fmap f (pa .>>. pb)
 map2 f pa pb = pa >>= (\x -> 
-                   pb >>= (\y -> 
-                   return $ f (x,y)))
---    map2 f pa pb = 
---        do { x <- pa 
---           ; y <- pb 
---           ; return $ f (x, y) }
+               pb >>= (\y -> 
+               return $ f (x,y)))
 
 many :: Parser a -> Parser [a]
 many pa = 
@@ -160,13 +155,13 @@ apply pf pa = pf >>= (\f ->
               return $ f x))
     
 
-(>>.) :: Parser a -> Parser b -> Parser b 
-pa >>. pb = pa >>= (\xa -> 
+(>>~) :: Parser a -> Parser b -> Parser b 
+pa >>~ pb = pa >>= (\xa -> 
             pb >>= (\xb -> 
             return xb ))
 
-(.>>) :: Parser a -> Parser b -> Parser a 
-pa .>> pb = pa >>= (\xa -> 
+(~>>) :: Parser a -> Parser b -> Parser a 
+pa ~>> pb = pa >>= (\xa -> 
             pb >>= (\xb -> 
             return xa ))
 
