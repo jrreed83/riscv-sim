@@ -183,7 +183,7 @@ anyString = Parser $ \s -> Success s []
     --until :: Parser a -> String -> Parser a 
 choice :: [Parser a] -> Parser a
 choice (h:t) = h <|> choice t 
-choice []    = failure "Nothing works"
+choice []    = failure "None of the alternatives work"
 
 
 

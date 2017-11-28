@@ -23,19 +23,26 @@ data Token  = COMMA
             | SD
             deriving (Show, Eq)
 
-comma :: Parser Token
-comma = (char ',') >> return COMMA   
+commaToken :: Parser Token
+commaToken = (char ',') >> return COMMA   
 
-lparen :: Parser Token 
-lparen = (char '(') >> return LPAREN
+lparenToken :: Parser Token 
+lparenToken = (char '(') >> return LPAREN
 
-rparen :: Parser Token 
-rparen = (char ')') >> return RPAREN
+rparenToken :: Parser Token 
+rparenToken = (char ')') >> return RPAREN
 
-reg :: Parser Token 
-reg = (char 'x') >>~ (integer >>= (\i -> return $ REG i))
+regToken :: Parser Token 
+regToken = (char 'x') >>~ (integer >>= (\i -> return $ REG i))
 
---or :: Parser Token 
---or = (string "or") >> return OR
+orToken :: Parser Token 
+orToken = (string "or") >> return OR
 
-tokens = choice [comma, lparen, rparen]
+tokens = choice [commaToken, lparenToken, rparenToken, orToken, regToken]
+
+tokenize :: Parser Token -> Parser [Token]
+tokenize p = Parser $ \s -> loop s []
+             where loop [] accum = Success accum []
+                   loop s  accum = case run p s of 
+                                        Success tok rest -> loop rest     (accum ++ [tok]) 
+                                        Failure _        -> loop (tail s) accum  
