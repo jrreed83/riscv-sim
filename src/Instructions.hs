@@ -8,11 +8,7 @@ import Data.Bits
 import Data.IORef 
 import qualified Data.Vector as V 
 import Text.Printf 
-import Foreign
-import Foreign.C.Types 
 
-foreign import ccall "hello"
-  c_hello :: IO () 
 
 -- | Vector update
 (//) = (V.//)
@@ -40,6 +36,14 @@ asInt x = fromIntegral x
 -----------------------------------------------------------
 --  Some additional parsing function 
 -----------------------------------------------------------
+
+letters :: String 
+letters = "abcdefghijklmnopqrstuvwxyz" 
+
+pLabel :: Parser String 
+pLabel = ((many (anyOf letters)) ~>> ((string ":") >> eol))
+         <|> success ""
+
 eol :: Parser String 
 eol = (string "\n") <|> spaces
 
@@ -58,7 +62,6 @@ rparen = char ')'
 
 comments :: Parser String 
 comments = semicolon >> anyString
-
 
 u32 :: Parser W.Word32 
 u32 = integer >>= (\x -> return $ asU32 x)
@@ -97,8 +100,9 @@ register = do
 --                  | NOP 
 --                  deriving (Show, Eq)
 
-pAdd :: Parser Instruction 
+pAdd :: Parser Code 
 pAdd = do
+    l   <- pLabel 
     _   <- string "add"
     _   <- spaces 
     rd  <- register
@@ -108,7 +112,7 @@ pAdd = do
     rs2 <- register 
     return $ R 0x33 rd 0 rs1 rs2 0 
 
-pSubtract :: Parser Instruction
+pSubtract :: Parser Code
 pSubtract = do
     _   <- string "sub"
     _   <- spaces 
@@ -119,7 +123,7 @@ pSubtract = do
     rs2 <- register 
     return $ R 0x33 rd 0 rs1 rs2 0x20                                     
 
-pStoreByte :: Parser Instruction 
+pStoreByte :: Parser Code 
 pStoreByte = do
     _   <- string "sb"
     _   <- spaces 
@@ -135,7 +139,7 @@ pStoreByte = do
     let f3   = 0x00
     return $ S op imml f3 rs1 rs2 immu    
     
-pStoreHalfWord :: Parser Instruction 
+pStoreHalfWord :: Parser Code 
 pStoreHalfWord = do
     _   <- string "sh"
     _   <- spaces 
@@ -151,7 +155,7 @@ pStoreHalfWord = do
     let f3   = 0x01
     return $ S op imml f3 rs1 rs2 immu     
 
-pStoreWord :: Parser Instruction 
+pStoreWord :: Parser Code 
 pStoreWord = do
     _   <- string "sw"
     _   <- spaces 
@@ -167,7 +171,7 @@ pStoreWord = do
     let f3   = 0x02
     return $ S op imml f3 rs1 rs2 immu  
     
-pStoreDoubleWord :: Parser Instruction 
+pStoreDoubleWord :: Parser Code 
 pStoreDoubleWord = do
     _   <- string "sd"
     _   <- spaces 
@@ -183,7 +187,7 @@ pStoreDoubleWord = do
     let f3   = 0x03
     return $ S op imml f3 rs1 rs2 immu    
 
-pLoadByte :: Parser Instruction
+pLoadByte :: Parser Code
 pLoadByte = do
     _   <- string "lb"
     _   <- spaces 
@@ -197,7 +201,7 @@ pLoadByte = do
     let f3   = 0x00
     return $ I op rd f3 rs1 imm       
 
-pLoadHalfWord :: Parser Instruction
+pLoadHalfWord :: Parser Code
 pLoadHalfWord = do
     _   <- string "lh"
     _   <- spaces 
@@ -211,7 +215,7 @@ pLoadHalfWord = do
     let f3   = 0x01
     return $ I op rd f3 rs1 imm 
     
-pLoadWord :: Parser Instruction
+pLoadWord :: Parser Code
 pLoadWord = do
     _   <- string "lw"
     _   <- spaces 
@@ -225,7 +229,7 @@ pLoadWord = do
     let f3   = 0x02
     return $ I op rd f3 rs1 imm  
     
-pLoadDoubleWord :: Parser Instruction
+pLoadDoubleWord :: Parser Code
 pLoadDoubleWord = do
     _   <- string "ld"
     _   <- spaces 
@@ -240,12 +244,32 @@ pLoadDoubleWord = do
     return $ I op rd f3 rs1 imm      
 ----------------------------------------------------------------------------------
 
-data Instruction = R { op :: !U32, rd   :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, f7   :: !U32 } 
-                 | I { op :: !U32, rd   :: !U32, f3 :: !U32, rs1 :: !U32, imm :: !U32               }
-                 | S { op :: !U32, imml :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, immu :: !U32 }
-                 | SB{ op :: !U32, imml :: !U32, f3 :: !U32, rs1 :: !U32, rs2 :: !U32, immu :: !U32 }
-                 deriving (Show, Eq)
- 
+data Code = R  { op  :: !U32
+               , rd  :: !U32
+               , f3  :: !U32
+               , rs1 :: !U32
+               , rs2 :: !U32
+               , f7  :: !U32 }
+          | I  { op  :: !U32
+               , rd  :: !U32
+               , f3  :: !U32
+               , rs1 :: !U32
+               , imm :: !U32 }
+          | S  { op   :: !U32
+               , imml :: !U32
+               , f3   :: !U32
+               , rs1  :: !U32
+               , rs2  :: !U32
+               , immu :: !U32 } 
+          | SB { op   :: !U32
+               , imml :: !U32
+               , f3   :: !U32
+               , rs1  :: !U32
+               , rs2  :: !U32
+               , immu :: !U32 } 
+          deriving (Show, Eq)
+
+
 data InstructionType = RType | SType | IType | SBType
                        deriving (Show,Eq)
 
@@ -259,7 +283,7 @@ instType 0x73 = IType
 instType 0x23 = SType
 instType 0x63 = SBType
 
-encode :: Instruction -> U32 
+encode :: Code -> U32 
 encode (R op rd f3 rs1 rs2 f7) = 
      (op  .<<. 0  ) .|. 
      (rd  .<<. 7  ) .|.
@@ -283,7 +307,7 @@ encode (S op imml f3 rs1 rs2 immu) =
      (rs2  .<<. 20) .|. 
      (immu .<<. 25)
 
-decode :: U32 -> Instruction 
+decode :: U32 -> Code 
 decode x = 
     let op = trim7 (x .>>.  0) 
     in  case (instType op) of 
@@ -324,7 +348,7 @@ trim11 x = x .&. 0x000007FF
 trim19 :: U32 -> U32
 trim19 x = x .&. 0x0007FFFF
 
-decodeR :: U32 -> Instruction 
+decodeR :: U32 -> Code 
 decodeR x = R op rd f3 rs1 rs2 f7
             where op  = trim7 (x .>>. 0 )
                   rd  = trim5 (x .>>. 7 )
@@ -333,7 +357,7 @@ decodeR x = R op rd f3 rs1 rs2 f7
                   rs2 = trim5 (x .>>. 20)
                   f7  = trim6 (x .>>. 25)
 
-decodeI :: U32 -> Instruction 
+decodeI :: U32 -> Code 
 decodeI x = I op rd f3 rs1 imm 
             where op  = trim7  (x .>>. 0 )
                   rd  = trim5  (x .>>. 7 )
@@ -341,7 +365,7 @@ decodeI x = I op rd f3 rs1 imm
                   rs1 = trim5  (x .>>. 15)
                   imm = trim11 (x .>>. 20)
 
-decodeS :: U32 -> Instruction
+decodeS :: U32 -> Code
 decodeS x = S op imml f3 rs1 rs2 immu
             where op   = trim7 (x .>>. 0 )
                   imml = trim5 (x .>>. 7 )
@@ -387,25 +411,25 @@ bitPattern x =
     show ((x .>>. 0 ) .&. 1)             
 
 
-data State = State { registers :: V.Vector U32 
-                   , ip        :: U32
-                   } deriving (Show)
+-- data State = State { registers :: V.Vector U32 
+--                    , ip        :: U32
+--                    } deriving (Show)
 
-initState :: State 
-initState = State r 0
-            where r = V.replicate 32 (0::U32)
+-- initState :: State 
+-- initState = State r 0
+--             where r = V.replicate 32 (0::U32)
 
-add :: Instruction -> State -> State 
-add (R _ rd _ rs rt _ ) state =  
-    let registers' = registers state
-        id         = asInt rd 
-        is         = asInt rs 
-        it         = asInt rt  
-        xs         = registers' ! is 
-        xt         = registers' ! it  
-        xd         = xs + xt
-        ip'        = (ip state) + 1        
-    in  State  (registers' // [(id,xd)]) ip'
+-- add :: Instruction -> State -> State 
+-- add (R _ rd _ rs rt _ ) state =  
+--     let registers' = registers state
+--         id         = asInt rd 
+--         is         = asInt rs 
+--         it         = asInt rt  
+--         xs         = registers' ! is 
+--         xt         = registers' ! it  
+--         xd         = xs + xt
+--         ip'        = (ip state) + 1        
+--     in  State  (registers' // [(id,xd)]) ip'
 
     -- type Memory = V.Vector W.Word8 
     

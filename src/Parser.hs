@@ -53,10 +53,9 @@ instance Monad Parser where
 char :: Char -> Parser Char
 char x = Parser fn
          where fn []    = Failure "Nothing to match"
-               fn (h:t) = if (h == x) then 
-                            Success x t 
-                          else 
-                            Failure ("Expected " ++ [x] ++ " but got " ++ [h])  
+               fn (h:t) = if (h == x) 
+                          then Success x t 
+                          else Failure ("Expected " ++ [x] ++ " but got " ++ [h])  
 
 success :: a -> Parser a 
 success x = Parser ( \s -> Success x s )
@@ -168,7 +167,7 @@ pa ~>> pb = pa >>= (\xa ->
 failure :: String -> Parser a
 failure msg = Parser $ \_ -> Failure msg 
 
-    -- Can we make this tail recursive
+-- Can we make this tail recursive
 anyOf :: String -> Parser Char 
 anyOf (h:t) = (char h) <|> (anyOf t)
 anyOf []    = failure "Could not match any symbols in" 
