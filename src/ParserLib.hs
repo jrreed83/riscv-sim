@@ -1,4 +1,4 @@
-module Parser 
+module ParserLib
     (
       Parser(..)
     , Result(..)
@@ -20,6 +20,7 @@ module Parser
     , failure
     , anyString
     , label
+    , choice
     ) where
         
 
@@ -180,7 +181,9 @@ anyString = Parser $ \s -> Success s []
 
     -- Parse until we hit String
     --until :: Parser a -> String -> Parser a 
-
+choice :: [Parser a] -> Parser a
+choice (h:t) = h <|> choice t 
+choice []    = failure "Nothing works"
 
 
 

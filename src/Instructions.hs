@@ -1,7 +1,7 @@
 module Instructions
 where
 
-import Parser
+import ParserLib
 import qualified Data.ByteString as B 
 import qualified Data.Word as W
 import Data.Bits 
