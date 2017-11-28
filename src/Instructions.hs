@@ -37,11 +37,8 @@ asInt x = fromIntegral x
 --  Some additional parsing function 
 -----------------------------------------------------------
 
-letters :: String 
-letters = "abcdefghijklmnopqrstuvwxyz" 
-
 pLabel :: Parser String 
-pLabel = ((many (anyOf letters)) ~>> ((string ":") >> eol))
+pLabel = ((many (anyOf ['a'..'z'])) ~>> ((string ":") >> eol))
          <|> success ""
 
 eol :: Parser String 
@@ -102,7 +99,6 @@ register = do
 
 pAdd :: Parser Code 
 pAdd = do
-    l   <- pLabel 
     _   <- string "add"
     _   <- spaces 
     rd  <- register
@@ -267,21 +263,24 @@ data Code = R  { op  :: !U32
                , rs1  :: !U32
                , rs2  :: !U32
                , immu :: !U32 } 
+          | UJ { op  :: !U32 
+               , rd  :: !U32 
+               , imm :: !U32 }
           deriving (Show, Eq)
 
 
-data InstructionType = RType | SType | IType | SBType
-                       deriving (Show,Eq)
+data CodeType = RCode | SCode | ICode | SBCode | UJCode
+                deriving (Show,Eq)
 
-instType :: U32 -> InstructionType 
-instType 0x33 = RType
-instType 0x3B = RType 
-instType 0x03 = IType 
-instType 0x0F = IType
-instType 0x67 = IType
-instType 0x73 = IType
-instType 0x23 = SType
-instType 0x63 = SBType
+codeType :: U32 -> CodeType 
+codeType 0x33 = RCode
+codeType 0x3B = RCode 
+codeType 0x03 = ICode 
+codeType 0x0F = ICode
+codeType 0x67 = ICode
+codeType 0x73 = ICode
+codeType 0x23 = SCode
+codeType 0x63 = SBCode
 
 encode :: Code -> U32 
 encode (R op rd f3 rs1 rs2 f7) = 
@@ -307,13 +306,18 @@ encode (S op imml f3 rs1 rs2 immu) =
      (rs2  .<<. 20) .|. 
      (immu .<<. 25)
 
+encode (UJ op rd imm) = 
+    (op  .<<. 0) .|.
+    (rd  .<<. 7) .|.
+    (imm .<<. 12)
+
 decode :: U32 -> Code 
-decode x = 
-    let op = trim7 (x .>>.  0) 
-    in  case (instType op) of 
-             RType -> decodeR x --R op 0 f3 0 0 0
-             IType -> decodeI x --I op 0 f3 0 0
-             SType -> decodeS x 
+decode x = case codeType opCode of 
+                RCode -> decodeR x
+                ICode -> decodeI x 
+                SCode -> decodeS x
+           where opCode = trim7 (x .>>. 0)  
+
 
 trim1 :: U32 -> U32 
 trim1 x = x .&. 0x00000001 
