@@ -23,11 +23,11 @@ module ParserLib
         
 
 
-data Result b a = Success {match :: a, rest :: b}
+data Result t a = Success {match :: a, rest :: t}
                 | Failure {msg :: String}
                 deriving (Show, Eq)
 
-data Parser b a = Parser {run :: b -> Result b a }
+data Parser t a = Parser {run :: t -> Result t a }
 
 --type Parser = GenParser String 
 --type Result = GenResult String 
@@ -44,7 +44,7 @@ parse pa str = case run pa str of
                     Success x "" -> Success x ""
                     Success x r  -> Failure "Failed to parse entire"
 
-instance Functor (Parser b) where
+instance Functor (Parser t) where
     fmap f pa = Parser $ \s -> 
         case run pa s of 
              Failure m   -> Failure m 
@@ -56,7 +56,7 @@ instance Functor (Parser b) where
 --             Failure m   -> Failure m 
 --             Success x c -> Success (f x) c        
 
-instance Applicative (Parser b) where 
+instance Applicative (Parser t) where 
     pure x    = success x 
     pf <*> pa = apply pf pa
 
@@ -64,7 +64,7 @@ instance Applicative (Parser b) where
 --    pure x    = success x 
 --    pf <*> pa = apply pf pa
 
-instance Monad (Parser b) where 
+instance Monad (Parser t) where 
     pa >>= f = bind pa f 
     pa >> pb = pa *> pb
     return x = success x
@@ -103,24 +103,24 @@ integer =
         fmap (\l -> (fn l)) (many anyDigit)
         where fn l = read (map (head . show) l) :: Int
 
-label :: String -> Parser String a -> Parser String a
+label :: String -> Parser t a -> Parser t a
 label msg pa = Parser $ \s -> 
     case run pa s of 
          Failure _ -> Failure msg
          x         -> x 
 
-andThen :: Parser String a -> Parser String b -> Parser String (a,b)
+andThen :: Parser t a -> Parser t b -> Parser t (a,b)
 andThen pa pb = pa >>= (\x -> 
                 pb >>= (\y -> 
                 return (x,y)))
 
-alt :: Parser String a -> Parser String a -> Parser String a 
+alt :: Parser b a -> Parser b a -> Parser b a 
 alt p1 p2 = Parser $ \s -> 
     case run p1 s of
          Success m r -> Success m r
          Failure _   -> run p2 s
 
-(<|>) :: Parser String a -> Parser String a -> Parser String a 
+(<|>) :: Parser b a -> Parser b a -> Parser b a 
 (<|>) = alt
 
 slice :: Parser String a -> Parser String String 
@@ -131,7 +131,7 @@ slice p =
                          Success x r -> let n = (length s) - (length r)
                                         in  Success (take n s) r
 
-map2 :: ((a,b) -> c) -> Parser String a -> Parser String b -> Parser String c
+map2 :: ((a,b) -> c) -> Parser t a -> Parser t b -> Parser t c
 map2 f pa pb = pa >>= (\x -> 
                pb >>= (\y -> 
                return $ f (x,y)))
@@ -146,8 +146,8 @@ many pa =
  
 many1 :: Parser String a -> Parser String [a]
 many1 pa = do { first <- pa
-                  ; list  <- many pa
-                  ; return (first : list)}
+              ; list  <- many pa
+              ; return (first : list)}
 
 exactlyN :: Parser String a -> Int -> Parser String [a]
 exactlyN pa n = 
