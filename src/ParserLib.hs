@@ -8,10 +8,7 @@ module ParserLib
     , digit
     , anyDigit
     , integer
-    , (~>>~)
     , (<|>)
-    , (~>>)
-    , (>>~)
     , many
     , many1
     , exactlyN
@@ -48,7 +45,7 @@ instance Applicative Parser where
 
 instance Monad Parser where 
     pa >>= f = bind pa f 
-    pa >> pb = pa >>~ pb
+    pa >> pb = pa *> pb
     return x = success x 
 
 char :: Char -> Parser Char
@@ -93,9 +90,6 @@ andThen pa pb = pa >>= (\x ->
                 pb >>= (\y -> 
                 return (x,y)))
 
-(~>>~) :: Parser a -> Parser b -> Parser (a,b) 
-(~>>~) = andThen
-
 alt :: Parser a -> Parser a -> Parser a 
 alt p1 p2 = 
         Parser $
@@ -121,7 +115,7 @@ map2 f pa pb = pa >>= (\x ->
 
 many :: Parser a -> Parser [a]
 many pa = 
-        Parser (fn [])
+        Parser (\s -> fn [] s)
         where fn accum [] = Success accum [] 
               fn accum s = case run pa s of
                 Failure _    -> Success accum s
@@ -153,17 +147,6 @@ apply :: Parser (a -> b) -> Parser a -> Parser b
 apply pf pa = pf >>= (\f -> 
               pa >>= (\x -> 
               return $ f x))
-    
-
-(>>~) :: Parser a -> Parser b -> Parser b 
-pa >>~ pb = pa >>= (\xa -> 
-            pb >>= (\xb -> 
-            return xb ))
-
-(~>>) :: Parser a -> Parser b -> Parser a 
-pa ~>> pb = pa >>= (\xa -> 
-            pb >>= (\xb -> 
-            return xa ))
 
 failure :: String -> Parser a
 failure msg = Parser $ \_ -> Failure msg 
