@@ -29,7 +29,9 @@ data Result t a = Success {match :: a, rest :: t}
 
 data Parser t a = Parser {run :: t -> Result t a }
 
---type Parser = GenParser String 
+type StringParser = Parser String
+
+--type StringParser a = Parser String a 
 --type Result = GenResult String 
 
 --data Result a = Success {match :: a, rest :: String}
@@ -38,67 +40,47 @@ data Parser t a = Parser {run :: t -> Result t a }
 
 --data Parser a = Parser { run :: String -> Result a }
 
-parse :: Parser String a -> String -> Result String a 
-parse pa str = case run pa str of 
-                    Failure msg  -> Failure msg 
-                    Success x "" -> Success x ""
-                    Success x r  -> Failure "Failed to parse entire"
-
 instance Functor (Parser t) where
     fmap f pa = Parser $ \s -> 
         case run pa s of 
              Failure m   -> Failure m 
-             Success x c -> Success (f x) c 
-
---instance Functor Parser where
---    fmap f pa = Parser $ \s -> 
---        case run pa s of 
---             Failure m   -> Failure m 
---             Success x c -> Success (f x) c        
+             Success x c -> Success (f x) c        
 
 instance Applicative (Parser t) where 
     pure x    = success x 
     pf <*> pa = apply pf pa
-
---instance Applicative Parser where 
---    pure x    = success x 
---    pf <*> pa = apply pf pa
 
 instance Monad (Parser t) where 
     pa >>= f = bind pa f 
     pa >> pb = pa *> pb
     return x = success x
 
---instance Monad Parser where 
---    pa >>= f = bind pa f 
---    pa >> pb = pa *> pb
---    return x = success x 
 
-char :: Char -> Parser String Char
+char :: Char -> StringParser Char
 char x = Parser fn
          where fn []    = Failure "Nothing to match"
                fn (h:t) = if (h == x) 
                           then Success x t 
                           else Failure ("Expected " ++ [x] ++ " but got " ++ [h])  
 
-success :: a -> Parser b a 
+success :: a -> Parser t a 
 success x = Parser ( \s -> Success x s )
 
-string :: String -> Parser String String
+string :: String -> StringParser String--Parser String String
 string x = Parser $ \s -> 
     let n = length x
     in  if   (x == (take n s)) 
         then Success x (drop n s)
         else Failure "Error"
 
-digit :: Int -> Parser String Int
+digit :: Int -> StringParser Int
 digit x = fmap (\c -> (read c :: Int)) (string (show x))
 
-anyDigit :: Parser String Int 
+anyDigit :: StringParser Int 
 anyDigit = (digit 0) <|> (digit 1) <|> (digit 2) <|> (digit 3) <|> (digit 4) <|> 
            (digit 5) <|> (digit 6) <|> (digit 7) <|> (digit 8) <|> (digit 9) 
 
-integer :: Parser String Int
+integer :: StringParser Int
 integer = 
         fmap (\l -> (fn l)) (many anyDigit)
         where fn l = read (map (head . show) l) :: Int
@@ -124,12 +106,11 @@ alt p1 p2 = Parser $ \s ->
 (<|>) = alt
 
 slice :: Parser String a -> Parser String String 
-slice p = 
-        Parser $
-             \s ->  case run p s of
-                         Failure m   -> Failure m
-                         Success x r -> let n = (length s) - (length r)
-                                        in  Success (take n s) r
+slice p = Parser $ \s ->  
+    case run p s of
+         Failure m   -> Failure m
+         Success x r -> let n = (length s) - (length r)
+                        in  Success (take n s) r
 
 map2 :: ((a,b) -> c) -> Parser t a -> Parser t b -> Parser t c
 map2 f pa pb = pa >>= (\x -> 
@@ -145,26 +126,24 @@ many pa =
                 Success x r  -> fn (accum ++ [x]) r
  
 many1 :: Parser String a -> Parser String [a]
-many1 pa = do { first <- pa
-              ; list  <- many pa
-              ; return (first : list)}
+many1 pa = pa        >>= (\first -> 
+           (many pa) >>= (\list  ->
+           return (first : list))) 
 
 exactlyN :: Parser String a -> Int -> Parser String [a]
-exactlyN pa n = 
-        Parser $ 
-             \s -> case run (many pa) s of 
-                        Failure msg   -> Failure msg 
-                        Success lst r -> if (length lst) == n 
-                                         then (Success lst r) 
-                                         else Failure "Error"
+exactlyN pa n = Parser $ \s -> 
+    case run (many pa) s of 
+         Failure msg   -> Failure msg 
+         Success lst r -> if   (length lst) == n 
+                          then (Success lst r) 
+                          else Failure "Error"
 
     {-- --}
 bind :: Parser b a -> (a -> Parser b c) -> Parser b c 
-bind pa f = 
-        Parser $
-             \s -> case run pa s of
-                        Failure msg1  -> Failure msg1
-                        Success x1 r1 -> run (f x1) r1 
+bind pa f = Parser $ \s -> 
+    case run pa s of
+         Failure msg1  -> Failure msg1
+         Success x1 r1 -> run (f x1) r1 
 
 apply :: Parser b (a -> c) -> Parser b a -> Parser b c
 apply pf pa = pf >>= (\f -> 
@@ -179,15 +158,15 @@ anyOf :: String -> Parser String Char
 anyOf (h:t) = (char h) <|> (anyOf t)
 anyOf []    = failure "Could not match any symbols in" 
 
-spaces :: Parser String String 
+spaces :: StringParser String 
 spaces = many (char ' ')
 
-anyString :: Parser String String 
+anyString :: StringParser String 
 anyString = Parser $ \s -> Success s []
 
     -- Parse until we hit String
     --until :: Parser a -> String -> Parser a 
-choice :: [Parser String a] -> Parser String a
+choice :: [Parser t a] -> Parser t a
 choice (h:t) = h <|> choice t 
 choice []    = failure "None of the alternatives work"
 
