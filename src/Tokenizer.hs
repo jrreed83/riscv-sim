@@ -25,55 +25,55 @@ data Token  = COMMA
             | JAL
             deriving (Show, Eq)
 
-commaToken :: Parser String Token
+commaToken :: CharParser Token
 commaToken = (char ',') >> return COMMA   
 
-lparenToken :: Parser String Token 
+lparenToken :: CharParser Token 
 lparenToken = (char '(') >> return LPAREN
 
-rparenToken :: Parser String Token 
+rparenToken :: CharParser Token 
 rparenToken = (char ')') >> return RPAREN
 
-regToken :: Parser String Token 
+regToken :: CharParser Token 
 regToken = (char 'x') *> (integer >>= (\i -> return $ REG i))
 
-orToken :: Parser String Token 
+orToken :: CharParser Token 
 orToken = (string "or") >> return OR
 
-addToken :: Parser String Token 
+addToken :: CharParser Token 
 addToken = (string "add") >> return ADD
 
-subToken :: Parser String Token 
+subToken :: CharParser Token 
 subToken = (string "sub") >> return SUB 
 
-lbToken :: Parser String Token 
+lbToken :: CharParser Token 
 lbToken = (string "lb") >> return LB 
 
-lhToken :: Parser String Token 
+lhToken :: CharParser Token 
 lhToken = (string "lh") >> return LH 
 
-lwToken :: Parser String Token 
+lwToken :: CharParser Token 
 lwToken = (string "lw") >> return LW 
 
-ldToken :: Parser String Token 
+ldToken :: CharParser Token 
 ldToken = (string "ld") >> return LD 
 
-sbToken :: Parser String Token 
+sbToken :: CharParser Token 
 sbToken = (string "sb") >> return SB 
 
-shToken :: Parser String Token 
+shToken :: CharParser Token 
 shToken = (string "sh") >> return SH 
 
-swToken :: Parser String Token 
+swToken :: CharParser Token 
 swToken = (string "sw") >> return SW 
 
-sdToken :: Parser String Token 
+sdToken :: CharParser Token 
 sdToken = (string "sd") >> return SD 
 
-labelToken :: Parser String Token 
+labelToken :: CharParser Token 
 labelToken = ((many (anyOf ['a'..'z'])) <* (string ":")) >>= (\s -> return $ LABEL s) 
 
-jalToken :: Parser String Token 
+jalToken :: CharParser Token 
 jalToken = (string "jal") >> return JAL 
 
 tokens = choice [ commaToken
@@ -93,7 +93,7 @@ tokens = choice [ commaToken
                 , sdToken
                 , jalToken]
 
-tokenize :: Parser String Token -> Parser String [Token]
+tokenize :: CharParser Token -> CharParser [Token]
 tokenize p = Parser $ \s -> loop s []
              where loop [] toks = Success toks ""
                    loop s  toks = case run p s of 
