@@ -76,6 +76,11 @@ labelToken = ((many (anyOf ['a'..'z'])) <* (string ":")) >>= (\s -> return $ LAB
 jalToken :: CharParser Token 
 jalToken = (string "jal") >> return JAL 
 
+comments :: CharParser String 
+comments = (detect ';') *> 
+           (many (anyOf (['a'..'z'] ++ ['0'..'9'] ++ ['A'..'Z']))) <* 
+           (detect '\n')
+
 tokens = choice [ commaToken
                 , lparenToken
                 , rparenToken

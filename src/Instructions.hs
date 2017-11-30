@@ -38,7 +38,7 @@ asInt x = fromIntegral x
 -----------------------------------------------------------
 
 pLabel :: Parser String 
-pLabel = ((many (anyOf ['a'..'z'])) ~>> ((string ":") >> eol))
+pLabel = ((many (anyOf ['a'..'z'])) <* ((string ":") >> eol))
          <|> success ""
 
 eol :: Parser String 
@@ -49,7 +49,6 @@ comma = (char ',')
 
 semicolon :: Parser Char 
 semicolon = char ';' 
-
 
 lparen :: Parser Char 
 lparen = char '(' 

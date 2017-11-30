@@ -78,19 +78,18 @@ map2 f pa pb = pa >>= (\x ->
                return $ f (x,y)))
 
 many :: Parser t a -> Parser t [a]
-many pa = 
-        Parser (\s -> fn [] s)
-        where fn accum [] = Success accum [] 
-              fn accum s = case run pa s of
-                Failure _    -> Success accum s
-                Success x r  -> fn (accum ++ [x]) r
+many pa = Parser (\s -> fn [] s)
+     where fn accum [] = Success accum [] 
+           fn accum s = case run pa s of
+                             Failure _    -> Success accum s
+                             Success x r  -> fn (accum ++ [x]) r
  
-many1 :: Parser String a -> Parser String [a]
+many1 :: Parser t a -> Parser t [a]
 many1 pa = pa        >>= (\first -> 
            (many pa) >>= (\list  ->
            return (first : list))) 
 
-exactlyN :: Parser String a -> Int -> Parser String [a]
+exactlyN :: Parser t a -> Int -> Parser t [a]
 exactlyN pa n = Parser $ \s -> 
     case run (many pa) s of 
          Failure msg   -> Failure msg 
@@ -98,8 +97,7 @@ exactlyN pa n = Parser $ \s ->
                           then (Success lst r) 
                           else Failure "Error"
 
-    {-- --}
-bind :: Parser b a -> (a -> Parser b c) -> Parser b c 
+bind :: Parser t a -> (a -> Parser t b) -> Parser t b 
 bind pa f = Parser $ \s -> 
     case run pa s of
          Failure msg1  -> Failure msg1
@@ -127,6 +125,10 @@ detect x = Parser $ \s ->
         h:rest -> if   h == x  
                   then Success x rest 
                   else Failure "Doesn't match"
+
+anyOf :: (Eq t) => [t] -> Parser t t 
+anyOf (h:t) = (detect h) <|> (anyOf t)
+anyOf []    = failure "Could not match any symbols in" 
 ---------------------------------------------------------------------------------------
 
 char :: Char -> CharParser Char
@@ -152,9 +154,9 @@ integer = fmap (\l -> (fn l)) (many anyDigit)
 
 
 -- Can we make this tail recursive
-anyOf :: String -> CharParser Char 
-anyOf (h:t) = (char h) <|> (anyOf t)
-anyOf []    = failure "Could not match any symbols in" 
+--anyOf :: String -> CharParser Char 
+--anyOf (h:t) = (char h) <|> (anyOf t)
+--anyOf []    = failure "Could not match any symbols in" 
 
 spaces :: CharParser String 
 spaces = many (char ' ')
