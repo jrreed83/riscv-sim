@@ -21,6 +21,7 @@ module ParserLib
     , choice
     , detect
     , scanAll
+    , parse
     ) where
         
 
@@ -137,6 +138,12 @@ detect x = Parser $ \s ->
 anyOf :: (Eq t) => [t] -> Parser t t 
 anyOf (h:t) = (detect h) <|> (anyOf t)
 anyOf []    = failure "Could not match any symbols in" 
+
+parse :: Parser t a -> [t] -> Either String a
+parse p str = 
+    case run p str of
+         Success x _ -> Right x
+         Failure msg -> Left msg
 ---------------------------------------------------------------------------------------
 
 char :: Char -> CharParser Char

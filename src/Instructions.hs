@@ -42,26 +42,25 @@ asInt x = fromIntegral x
 --u32 = integer >>= (\x -> return $ asU32 x)
 
 -- Assembler temporary
-register :: Parser Token Int
+register :: Parser Token U32
 register = Parser $ \s ->
     case s of
-        (REG x):t -> Success x t 
+        (REG x):t -> Success (asU32 x) t 
         _         -> Failure "Nothing"
     
 
 --------------------------------------------------------------------------------
 
 
--- pAdd :: Parser Code 
--- pAdd = do
---     _   <- match ADD
---     _   <- spaces 
---     rd  <- register
---     _   <- comma 
---     rs1 <- register 
---     _   <- comma 
---     rs2 <- register 
---     return $ R 0x33 rd 0 rs1 rs2 0 
+pAdd :: Parser Token Code 
+pAdd = do
+     _   <- detect ADD
+     rd  <- register
+     _   <- detect COMMA
+     rs1 <- register 
+     _   <- detect COMMA 
+     rs2 <- register 
+     return $ R 0x33 rd 0 rs1 rs2 0 
 
 -- pSubtract :: Parser Code
 -- pSubtract = do
@@ -195,33 +194,33 @@ register = Parser $ \s ->
 --     return $ I op rd f3 rs1 imm      
 -- ----------------------------------------------------------------------------------
 
--- data Code = R  { op  :: !U32
---                , rd  :: !U32
---                , f3  :: !U32
---                , rs1 :: !U32
---                , rs2 :: !U32
---                , f7  :: !U32 }
---           | I  { op  :: !U32
---                , rd  :: !U32
---                , f3  :: !U32
---                , rs1 :: !U32
---                , imm :: !U32 }
---           | S  { op   :: !U32
---                , imml :: !U32
---                , f3   :: !U32
---                , rs1  :: !U32
---                , rs2  :: !U32
---                , immu :: !U32 } 
---           | SB { op   :: !U32
---                , imml :: !U32
---                , f3   :: !U32
---                , rs1  :: !U32
---                , rs2  :: !U32
---                , immu :: !U32 } 
---           | UJ { op  :: !U32 
---                , rd  :: !U32 
---                , imm :: !U32 }
---           deriving (Show, Eq)
+data Code = R  { op  :: !U32
+               , rd  :: !U32
+               , f3  :: !U32
+               , rs1 :: !U32
+               , rs2 :: !U32
+               , f7  :: !U32 }
+          | I  { op  :: !U32
+               , rd  :: !U32
+               , f3  :: !U32
+               , rs1 :: !U32
+               , imm :: !U32 }
+          | S  { op   :: !U32
+               , imml :: !U32
+               , f3   :: !U32
+               , rs1  :: !U32
+               , rs2  :: !U32
+               , immu :: !U32 } 
+          | SB { op   :: !U32
+               , imml :: !U32
+               , f3   :: !U32
+               , rs1  :: !U32
+               , rs2  :: !U32
+               , immu :: !U32 } 
+          | UJ { op  :: !U32 
+               , rd  :: !U32 
+               , imm :: !U32 }
+          deriving (Show, Eq)
 
 
 -- data CodeType = RCode | SCode | ICode | SBCode | UJCode

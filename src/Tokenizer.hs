@@ -1,5 +1,6 @@
 module Tokenizer 
-     (Token(..)) where 
+     ( Token(..)
+     , tokenize) where 
 
 import qualified Data.Word as W 
 import ParserLib
