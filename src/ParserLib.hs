@@ -20,6 +20,7 @@ module ParserLib
     , choice
     , CharParser(..)
     , detect
+    , scanAll
     ) where
         
 
@@ -81,13 +82,20 @@ many :: Parser t a -> Parser t [a]
 many pa = Parser (\s -> fn [] s)
      where fn accum [] = Success accum [] 
            fn accum s = case run pa s of
-                             Failure _    -> Success accum s
-                             Success x r  -> fn (accum ++ [x]) r
+                             Failure _     -> Success accum s
+                             Success x  r  -> fn (accum ++ [x]) r
  
 many1 :: Parser t a -> Parser t [a]
 many1 pa = pa        >>= (\first -> 
            (many pa) >>= (\list  ->
            return (first : list))) 
+
+scanAll :: Parser t a -> Parser t [a]
+scanAll pa = Parser (\s -> fn s [])
+     where fn [] accum = Success accum [] 
+           fn s  accum = case run pa s of
+                              Failure _    -> fn (tail s) accum       
+                              Success x r  -> fn r        (accum ++ [x])
 
 exactlyN :: Parser t a -> Int -> Parser t [a]
 exactlyN pa n = Parser $ \s -> 

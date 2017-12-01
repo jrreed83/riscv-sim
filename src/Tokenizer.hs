@@ -23,6 +23,7 @@ data Token  = COMMA
             | SW 
             | SD
             | JAL
+            | COMMENT
             deriving (Show, Eq)
 
 commaToken :: CharParser Token
@@ -76,10 +77,11 @@ labelToken = ((many (anyOf ['a'..'z'])) <* (string ":")) >>= (\s -> return $ LAB
 jalToken :: CharParser Token 
 jalToken = (string "jal") >> return JAL 
 
-comments :: CharParser String 
-comments = (detect ';') *> 
-           (many (anyOf (['a'..'z'] ++ ['0'..'9'] ++ ['A'..'Z']))) <* 
-           (detect '\n')
+commentToken :: CharParser Token 
+commentToken = (detect ';') >>
+               (many (anyOf (['a'..'z'] ++ ['0'..'9'] ++ ['A'..'Z']))) >> 
+               (detect '\n') >>
+               return COMMENT
 
 tokens = choice [ commaToken
                 , lparenToken
@@ -96,11 +98,8 @@ tokens = choice [ commaToken
                 , shToken
                 , swToken 
                 , sdToken
-                , jalToken]
+                , jalToken
+                , commentToken]
 
-tokenize :: CharParser Token -> CharParser [Token]
-tokenize p = Parser $ \s -> loop s []
-             where loop [] toks = Success toks ""
-                   loop s  toks = case run p s of 
-                                        Success tok rest -> loop rest     (toks ++ [tok]) 
-                                        Failure _        -> loop (tail s) toks  
+tokenize :: CharParser [Token]
+tokenize = scanAll tokens   
