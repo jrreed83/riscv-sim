@@ -1,5 +1,5 @@
 module Tokenizer 
-where 
+     (Token(..)) where 
 
 import qualified Data.Word as W 
 import ParserLib
@@ -77,9 +77,10 @@ labelToken = ((many (anyOf ['a'..'z'])) <* (string ":")) >>= (\s -> return $ LAB
 jalToken :: CharParser Token 
 jalToken = (string "jal") >> return JAL 
 
+
 commentToken :: CharParser Token 
 commentToken = (detect ';') >>
-               (many (anyOf (['a'..'z'] ++ ['0'..'9'] ++ ['A'..'Z']))) >> 
+               (many (anyOf (['a'..'z'] ++ ['0'..'9'] ++ ['A'..'Z'] ++ [' ']))) >> 
                (detect '\n') >>
                return COMMENT
 

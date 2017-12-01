@@ -2,6 +2,7 @@ module ParserLib
     (
       Parser(..)
     , Result(..)
+    , CharParser(..)    
     , char
     , success
     , string
@@ -16,9 +17,8 @@ module ParserLib
     , anyOf
     , failure
     , anyString
-    , label
+    , errorMsg
     , choice
-    , CharParser(..)
     , detect
     , scanAll
     ) where
@@ -52,8 +52,8 @@ instance Monad (Parser t) where
 success :: a -> Parser t a 
 success x = Parser ( \s -> Success x s )
 
-label :: String -> Parser t a -> Parser t a
-label msg pa = Parser $ \s -> 
+errorMsg :: String -> Parser t a -> Parser t a
+errorMsg msg pa = Parser $ \s -> 
     case run pa s of 
          Failure _ -> Failure msg
          x         -> x 
