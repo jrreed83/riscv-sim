@@ -3,17 +3,15 @@ module ParserLib
       Parser(..)
     , Result(..)
     , CharParser(..)    
-    , char
     , success
     , string
     , digit
-    , anyDigit
     , integer
     , (<|>)
     , many
     , many1
     , exactlyN
-    , spaces
+    , whiteSpace
     , anyOf
     , failure
     , anyString
@@ -24,7 +22,7 @@ module ParserLib
     , parse
     ) where
         
-
+import Data.Char as C 
 
 data Result t a = Success {match :: a, rest :: [t]}
                 | Failure {msg :: String}
@@ -127,16 +125,16 @@ choice (h:t) = h <|> choice t
 choice []    = failure "None of the alternatives work"
 
 -- Generalization of char parser
-detect :: (Eq t) => t -> Parser t t 
-detect x = Parser $ \s -> 
+detect :: (Eq t) => (t->Bool) -> Parser t t 
+detect f = Parser $ \s -> 
     case s of 
         []     -> Failure "Empty string, doesn't match"
-        h:rest -> if   h == x  
-                  then Success x rest 
+        h:rest -> if (f h)  
+                  then Success h rest 
                   else Failure "Doesn't match"
 
 anyOf :: (Eq t) => [t] -> Parser t t 
-anyOf (h:t) = (detect h) <|> (anyOf t)
+anyOf (h:t) = (detect (==h)) <|> (anyOf t)
 anyOf []    = failure "Could not match any symbols in" 
 
 parse :: Parser t a -> [t] -> Either String a
@@ -145,9 +143,7 @@ parse p str =
          Success x _ -> Right x
          Failure msg -> Left msg
 ---------------------------------------------------------------------------------------
-
-char :: Char -> CharParser Char
-char x = detect x  
+ 
 
 string :: String -> CharParser String
 string x = Parser $ \s -> 
@@ -156,25 +152,17 @@ string x = Parser $ \s ->
         then Success x (drop n s)
         else Failure "Error"
 
-digit :: Int -> CharParser Int
-digit x = fmap (\c -> (read c :: Int)) (string (show x))
-
-anyDigit :: CharParser Int 
-anyDigit = (digit 0) <|> (digit 1) <|> (digit 2) <|> (digit 3) <|> (digit 4) <|> 
-           (digit 5) <|> (digit 6) <|> (digit 7) <|> (digit 8) <|> (digit 9) 
+digit :: CharParser Int
+digit = (detect C.isDigit) >>= (\c -> return $ C.digitToInt c)
+ 
 
 integer :: CharParser Int
-integer = fmap (\l -> (fn l)) (many anyDigit)
+integer = fmap (\l -> (fn l)) (many digit)
           where fn l = read (map (head . show) l) :: Int
 
 
--- Can we make this tail recursive
---anyOf :: String -> CharParser Char 
---anyOf (h:t) = (char h) <|> (anyOf t)
---anyOf []    = failure "Could not match any symbols in" 
-
-spaces :: CharParser String 
-spaces = many (char ' ')
+whiteSpace :: CharParser String 
+whiteSpace = many (detect (==' '))
 
 anyString :: CharParser String 
 anyString = Parser $ \s -> Success s []
