@@ -80,10 +80,10 @@ map2 f pa pb = pa >>= (\x ->
 many :: Parser t a -> Parser t [a]
 many pa = Parser (\s -> fn [] s)
      where fn accum [] = Success accum [] 
-           fn accum s = case run pa s of
-                             Failure _     -> Success accum s
-                             Success x  r  -> fn (accum ++ [x]) r
- 
+           fn accum s  = case run pa s of
+                              Failure _     -> Success accum s
+                              Success x  r  -> fn (accum ++ [x]) r
+
 many1 :: Parser t a -> Parser t [a]
 many1 pa = pa        >>= (\first -> 
            (many pa) >>= (\list  ->
@@ -167,7 +167,8 @@ whiteSpace = many (detect (==' '))
 anyString :: CharParser String 
 anyString = Parser $ \s -> Success s []
 
-
+spotChar :: Char -> CharParser Char
+spotChar c = detect (==c)
 
 
 

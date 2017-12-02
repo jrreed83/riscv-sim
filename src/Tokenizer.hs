@@ -27,26 +27,20 @@ data Token  = COMMA
             | COMMENT
             deriving (Show, Eq)
 
-comma :: CharParser Char 
-comma = detect (==',')
-
-lparen :: CharParser Char 
-lparen = detect (=='(')
-
 --token' :: Char -> CharParser Char 
 --token' x = (detect (==x)) >> return map[x] 
 
 commaToken :: CharParser Token
-commaToken = comma >> return COMMA   
+commaToken = (spotChar ',') >> return COMMA   
 
 lparenToken :: CharParser Token 
-lparenToken = lparen >> return LPAREN
+lparenToken = (spotChar '(')  >> return LPAREN
 
 rparenToken :: CharParser Token 
-rparenToken = rparen >> return RPAREN
+rparenToken = (spotChar ')') >> return RPAREN
 
 regToken :: CharParser Token 
-regToken = xChar *> (integer >>= (\i -> return $ REG i))
+regToken = (spotChar 'x') *> (integer >>= (\i -> return $ REG i))
 
 orToken :: CharParser Token 
 orToken = (string "or") >> return OR
