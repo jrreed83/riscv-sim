@@ -2,12 +2,12 @@ name:                riscv-sim
 version:             0.1.0.0
 -- synopsis:
 -- description:
-homepage:            https://github.com/githubuser/riscv-sim#readme
+homepage:            https://github.com/jrreed83/riscv-sim#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2017 Author name here
+author:              Joey Reed
+maintainer:          joeyrreed@gmail.com
+copyright:           2017 Joey Reed
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
@@ -16,11 +16,13 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Lib
-                     , Parser
+                     , ParserLib
+                     , Tokenizer
                      , Instructions
   build-depends:       base >= 4.7 && < 5
                      , vector
                      , bytestring
+                     , containers
   default-language:    Haskell2010
 
 executable riscv-sim-exe
