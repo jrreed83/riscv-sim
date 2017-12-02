@@ -17,7 +17,7 @@ module ParserLib
     , anyOf
     , failure
     , anyString
-    , errorMsg
+    , (<!>)
     , choice
     , detect
     , scanAll
@@ -53,8 +53,8 @@ instance Monad (Parser t) where
 success :: a -> Parser t a 
 success x = Parser ( \s -> Success x s )
 
-errorMsg :: String -> Parser t a -> Parser t a
-errorMsg msg pa = Parser $ \s -> 
+(<!>) :: Parser t a -> String -> Parser t a
+pa <!> msg = Parser $ \s -> 
     case run pa s of 
          Failure _ -> Failure msg
          x         -> x 
