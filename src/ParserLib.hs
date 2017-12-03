@@ -20,6 +20,7 @@ module ParserLib
     , match
     , scanAll
     , parse
+    , alphaNumeric
     ) where
         
 import Data.Char as C 

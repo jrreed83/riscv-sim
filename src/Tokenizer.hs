@@ -76,7 +76,7 @@ sdToken :: CharParser Token
 sdToken = (string "sd") >> return SD 
 
 labelToken :: CharParser Token 
-labelToken = ((many (anyOf ['a'..'z'])) <* (string ":")) >>= (\s -> return $ LABEL s) 
+labelToken = (alphaNumeric <* (string ":")) >>= (\s -> return $ LABEL s) 
 
 jalToken :: CharParser Token 
 jalToken = (string "jal") >> return JAL 
