@@ -17,14 +17,14 @@ module ParserLib
     , anyString
     , (<!>)
     , choice
-    , detect
+    , match
     , scanAll
     , parse
     ) where
         
 import Data.Char as C 
 
-data Result t a = Success {match :: a, rest :: [t]}
+data Result t a = Success {first :: a, rest :: [t]}
                 | Failure {msg :: String}
                 deriving (Show, Eq)
 
@@ -125,6 +125,7 @@ choice (h:t) = h <|> choice t
 choice []    = failure "None of the alternatives work"
 
 -- Generalization of char parser
+
 detect :: (Eq t) => (t->Bool) -> Parser t t 
 detect f = Parser $ \s -> 
     case s of 
@@ -133,8 +134,11 @@ detect f = Parser $ \s ->
                   then Success h rest 
                   else Failure "Doesn't match"
 
+match :: (Eq t) => t -> Parser t t 
+match x = detect (==x)
+
 anyOf :: (Eq t) => [t] -> Parser t t 
-anyOf (h:t) = (detect (==h)) <|> (anyOf t)
+anyOf (h:t) = (match h) <|> (anyOf t)
 anyOf []    = failure "Could not match any symbols in" 
 
 parse :: Parser t a -> [t] -> Either String a
@@ -160,15 +164,15 @@ integer :: CharParser Int
 integer = fmap (\l -> (fn l)) (many digit)
           where fn l = read (map (head . show) l) :: Int
 
-
 whiteSpace :: CharParser String 
-whiteSpace = many (detect (==' '))
+whiteSpace = many1 (match ' ')
 
 anyString :: CharParser String 
 anyString = Parser $ \s -> Success s []
 
-spotChar :: Char -> CharParser Char
-spotChar c = detect (==c)
+alphaNumeric :: CharParser String
+alphaNumeric = many1 (detect C.isAlphaNum)
+
 
 
 

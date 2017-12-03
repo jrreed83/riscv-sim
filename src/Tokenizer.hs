@@ -31,16 +31,16 @@ data Token  = COMMA
 --token' x = (detect (==x)) >> return map[x] 
 
 commaToken :: CharParser Token
-commaToken = (spotChar ',') >> return COMMA   
+commaToken = (match ',') >> return COMMA   
 
 lparenToken :: CharParser Token 
-lparenToken = (spotChar '(')  >> return LPAREN
+lparenToken = (match '(')  >> return LPAREN
 
 rparenToken :: CharParser Token 
-rparenToken = (spotChar ')') >> return RPAREN
+rparenToken = (match ')') >> return RPAREN
 
 regToken :: CharParser Token 
-regToken = (spotChar 'x') *> (integer >>= (\i -> return $ REG i))
+regToken = (match 'x') *> (integer >>= (\i -> return $ REG i))
 
 orToken :: CharParser Token 
 orToken = (string "or") >> return OR
@@ -83,9 +83,9 @@ jalToken = (string "jal") >> return JAL
 
 
 commentToken :: CharParser Token 
-commentToken = (detect ';') >>
+commentToken = (match ';') >>
                (many (anyOf (['a'..'z'] ++ ['0'..'9'] ++ ['A'..'Z'] ++ [' ']))) >> 
-               (detect '\n') >>
+               (match '\n') >>
                return COMMENT
 
 tokens = choice [ commaToken
