@@ -2,7 +2,6 @@ module ParserLib
     (
       Parser(..)
     , Result(..)
-    , CharParser(..)    
     , success
     , string
     , digit
@@ -30,9 +29,6 @@ data Result t a = Success {first :: a, rest :: [t]}
                 deriving (Show, Eq)
 
 data Parser t a = Parser {run :: [t] -> Result t a }
-
-type CharParser = Parser Char
-
 
 instance Functor (Parser t) where
     fmap f pa = Parser $ \s -> 
@@ -150,28 +146,28 @@ parse p str =
 ---------------------------------------------------------------------------------------
  
 
-string :: String -> CharParser String
+string :: String -> Parser Char String
 string x = Parser $ \s -> 
     let n = length x
     in  if   (x == (take n s)) 
         then Success x (drop n s)
         else Failure "Error"
 
-digit :: CharParser Int
+digit :: Parser Char Int
 digit = (detect C.isDigit) >>= (\c -> return $ C.digitToInt c)
  
 
-integer :: CharParser Int
+integer :: Parser Char Int
 integer = fmap (\l -> (fn l)) (many digit)
           where fn l = read (map (head . show) l) :: Int
 
-whiteSpace :: CharParser String 
+whiteSpace :: Parser Char String 
 whiteSpace = many1 (match ' ')
 
-anyString :: CharParser String 
+anyString :: Parser Char String 
 anyString = Parser $ \s -> Success s []
 
-alphaNumeric :: CharParser String
+alphaNumeric :: Parser Char String
 alphaNumeric = many1 (detect C.isAlphaNum)
 
 

@@ -1,6 +1,7 @@
 module Tokenizer 
      ( Token(..)
-     , tokenize) where 
+     , tokenize 
+     ) where 
 
 import qualified Data.Word as W 
 import ParserLib
@@ -27,64 +28,67 @@ data Token  = COMMA
             | COMMENT
             deriving (Show, Eq)
 
---token' :: Char -> CharParser Char 
---token' x = (detect (==x)) >> return map[x] 
 
-commaToken :: CharParser Token
+commaToken :: Parser Char Token
 commaToken = (match ',') >> return COMMA   
 
-lparenToken :: CharParser Token 
+lparenToken :: Parser Char Token 
 lparenToken = (match '(')  >> return LPAREN
 
-rparenToken :: CharParser Token 
+rparenToken :: Parser Char Token 
 rparenToken = (match ')') >> return RPAREN
 
-regToken :: CharParser Token 
-regToken = (match 'x') *> (integer >>= (\i -> return $ REG i))
+regToken :: Parser Char Token 
+regToken = (match 'x') *> (integer >>= (\i -> 
+            if i > 0 && i < 32 
+            then return $ REG i 
+            else failure "Registers are labeled from x0 to x31"))
 
-orToken :: CharParser Token 
+immToken :: Parser Char Token 
+immToken = (integer >>= (\i -> return $ IMM i))
+
+orToken :: Parser Char Token 
 orToken = (string "or") >> return OR
 
-addToken :: CharParser Token 
+addToken :: Parser Char Token 
 addToken = (string "add") >> return ADD
 
-subToken :: CharParser Token 
+subToken :: Parser Char Token 
 subToken = (string "sub") >> return SUB 
 
-lbToken :: CharParser Token 
+lbToken :: Parser Char Token 
 lbToken = (string "lb") >> return LB 
 
-lhToken :: CharParser Token 
+lhToken :: Parser Char Token 
 lhToken = (string "lh") >> return LH 
 
-lwToken :: CharParser Token 
+lwToken :: Parser Char Token 
 lwToken = (string "lw") >> return LW 
 
-ldToken :: CharParser Token 
+ldToken :: Parser Char Token 
 ldToken = (string "ld") >> return LD 
 
-sbToken :: CharParser Token 
+sbToken :: Parser Char Token 
 sbToken = (string "sb") >> return SB 
 
-shToken :: CharParser Token 
+shToken :: Parser Char Token 
 shToken = (string "sh") >> return SH 
 
-swToken :: CharParser Token 
+swToken :: Parser Char Token 
 swToken = (string "sw") >> return SW 
 
-sdToken :: CharParser Token 
+sdToken :: Parser Char Token 
 sdToken = (string "sd") >> return SD 
 
-labelToken :: CharParser Token 
+labelToken :: Parser Char Token 
 labelToken = (alphaNumeric <* (string ":")) >>= (\s -> return $ LABEL s) 
 
-jalToken :: CharParser Token 
+jalToken :: Parser Char Token 
 jalToken = (string "jal") >> return JAL 
 
-
-commentToken :: CharParser Token 
+commentToken :: Parser Char Token 
 commentToken = (match ';') >>
-               (many (anyOf (['a'..'z'] ++ ['0'..'9'] ++ ['A'..'Z'] ++ [' ']))) >> 
+               (many (alphaNumeric <|> whiteSpace)) >> 
                (match '\n') >>
                return COMMENT
 
@@ -106,5 +110,10 @@ tokens = choice [ commaToken
                 , jalToken
                 , commentToken]
 
-tokenize :: CharParser [Token]
-tokenize = scanAll tokens   
+tokenize' :: Parser Char [Token]
+tokenize' = scanAll tokens   
+
+tokenize :: String -> Either String [Token]
+tokenize s = case run tokenize' s of
+    Success x _ -> Right x 
+    Failure m   -> Left  m

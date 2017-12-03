@@ -2,13 +2,14 @@ module Instructions
 where
 
 import ParserLib
+import Tokenizer
 import qualified Data.ByteString as B 
 import qualified Data.Word as W
 import Data.Bits 
 import Data.IORef 
 import qualified Data.Vector as V 
 import Text.Printf 
-import Tokenizer
+
 
 -- | Vector update
 (//) = (V.//)
@@ -54,40 +55,38 @@ register = Parser $ \s ->
 
 pAdd :: Parser Token Code 
 pAdd = do
-     _   <- detect ADD
+     _   <- match ADD
      rd  <- register
-     _   <- detect COMMA
+     _   <- match COMMA
      rs1 <- register 
-     _   <- detect COMMA 
+     _   <- match COMMA 
      rs2 <- register 
      return $ R 0x33 rd 0 rs1 rs2 0 
 
--- pSubtract :: Parser Code
--- pSubtract = do
---     _   <- string "sub"
---     _   <- spaces 
---     rd  <- register
---     _   <- comma 
---     rs1 <- register 
---     _   <- comma 
---     rs2 <- register 
---     return $ R 0x33 rd 0 rs1 rs2 0x20                                     
+pSubtract :: Parser Token Code
+pSubtract = do
+     _   <- match SUB
+     rd  <- register
+     _   <- match COMMA 
+     rs1 <- register 
+     _   <- match COMMA 
+     rs2 <- register 
+     return $ R 0x33 rd 0 rs1 rs2 0x20                                     
 
--- pStoreByte :: Parser Code 
--- pStoreByte = do
---     _   <- string "sb"
---     _   <- spaces 
---     rs1 <- register 
---     _   <- comma 
---     imm <- u32 
---     _   <- lparen
---     rs2 <- register 
---     _   <- rparen 
---     let imml = trim5 imm 
---     let immu = trim7 (imm .>>. 5) 
---     let op   = 0x23
---     let f3   = 0x00
---     return $ S op imml f3 rs1 rs2 immu    
+pStoreByte :: Parser Token Code 
+pStoreByte = do
+     _   <- match SB
+     rs1 <- register 
+     _   <- match COMMA 
+     imm <- u32 
+     _   <- match LPAREN
+     rs2 <- register 
+     _   <- match RPAREN 
+     let imml = trim5 imm 
+     let immu = trim7 (imm .>>. 5) 
+     let op   = 0x23
+     let f3   = 0x00
+     return $ S op imml f3 rs1 rs2 immu    
     
 -- pStoreHalfWord :: Parser Code 
 -- pStoreHalfWord = do
