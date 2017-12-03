@@ -9,7 +9,7 @@ import Data.Bits
 import Data.IORef 
 import qualified Data.Vector as V 
 import Text.Printf 
-
+import Numeric
 
 -- | Vector update
 (//) = (V.//)
@@ -73,20 +73,25 @@ pSubtract = do
      rs2 <- register 
      return $ R 0x33 rd 0 rs1 rs2 0x20                                     
 
-pStoreByte :: Parser Token Code 
-pStoreByte = do
-     _   <- match SB
-     rs1 <- register 
-     _   <- match COMMA 
-     imm <- u32 
-     _   <- match LPAREN
-     rs2 <- register 
-     _   <- match RPAREN 
-     let imml = trim5 imm 
-     let immu = trim7 (imm .>>. 5) 
-     let op   = 0x23
-     let f3   = 0x00
-     return $ S op imml f3 rs1 rs2 immu    
+data ByteCode = ByteCode !U32 
+
+instance Show ByteCode where
+    show (ByteCode x) = showHex x ""
+
+-- pStoreByte :: Parser Token Code 
+-- pStoreByte = do
+--      _   <- match SB
+--      rs1 <- register 
+--      _   <- match COMMA 
+--      imm <- u32 
+--      _   <- match LPAREN
+--      rs2 <- register 
+--      _   <- match RPAREN 
+--      let imml = trim5 imm 
+--      let immu = trim7 (imm .>>. 5) 
+--      let op   = 0x23
+--      let f3   = 0x00
+--      return $ S op imml f3 rs1 rs2 immu    
     
 -- pStoreHalfWord :: Parser Code 
 -- pStoreHalfWord = do
@@ -235,34 +240,34 @@ data Code = R  { op  :: !U32
 -- codeType 0x23 = SCode
 -- codeType 0x63 = SBCode
 
--- encode :: Code -> U32 
--- encode (R op rd f3 rs1 rs2 f7) = 
---      (op  .<<. 0  ) .|. 
---      (rd  .<<. 7  ) .|.
---      (f3  .<<. 12 ) .|. 
---      (rs1 .<<. 15 ) .|.
---      (rs2 .<<. 20 ) .|.
---      (f7  .<<. 25 ) 
+encode :: Code -> ByteCode
+encode (R op rd f3 rs1 rs2 f7) = ByteCode $ 
+       (op  .<<. 0  ) .|. 
+       (rd  .<<. 7  ) .|.
+       (f3  .<<. 12 ) .|. 
+       (rs1 .<<. 15 ) .|.
+       (rs2 .<<. 20 ) .|.
+       (f7  .<<. 25 ) 
 
--- encode (I op rd f3 rs imm) = 
---      (op  .<<. 0 ) .|. 
---      (rd  .<<. 7 ) .|.
---      (f3  .<<. 12) .|.
---      (rs  .<<. 15) .|. 
---      (imm .<<. 20)
+encode (I op rd f3 rs imm) = ByteCode $
+       (op  .<<. 0 ) .|. 
+       (rd  .<<. 7 ) .|.
+       (f3  .<<. 12) .|.
+       (rs  .<<. 15) .|. 
+       (imm .<<. 20)
 
--- encode (S op imml f3 rs1 rs2 immu) = 
---      (op   .<<. 0 ) .|. 
---      (imml .<<. 7 ) .|.
---      (f3   .<<. 12) .|.
---      (rs1  .<<. 15) .|. 
---      (rs2  .<<. 20) .|. 
---      (immu .<<. 25)
+encode (S op imml f3 rs1 rs2 immu) = ByteCode $
+       (op   .<<. 0 ) .|. 
+       (imml .<<. 7 ) .|.
+       (f3   .<<. 12) .|.
+       (rs1  .<<. 15) .|. 
+       (rs2  .<<. 20) .|. 
+       (immu .<<. 25)
 
--- encode (UJ op rd imm) = 
---     (op  .<<. 0) .|.
---     (rd  .<<. 7) .|.
---     (imm .<<. 12)
+encode (UJ op rd imm) = ByteCode $
+       (op  .<<. 0) .|.
+       (rd  .<<. 7) .|.
+       (imm .<<. 12)
 
 -- decode :: U32 -> Code 
 -- decode x = case codeType opCode of 
