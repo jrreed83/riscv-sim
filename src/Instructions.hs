@@ -362,7 +362,7 @@ getReg :: U32 -> State -> U32
 getReg idx state = 
     case (Map.lookup idx (regFile state)) of 
         Just x   -> x 
-        Nothing  -> error "oh no"
+        Nothing  -> error ("Register " ++ (show idx) ++ " Not valid" )
 
 setReg :: U32 -> U32 -> State -> State
 setReg idx val (State reg ip) = State reg' ip
