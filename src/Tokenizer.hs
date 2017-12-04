@@ -113,11 +113,7 @@ tokens = choice [ commaToken
                 , jalToken
                 , commentToken]
                 
-
-tokenize' :: Parser Char [Token]
-tokenize' = scanAll tokens   
-
 tokenize :: String -> Either String [Token]
-tokenize s = case run tokenize' s of
+tokenize s = case run (scanAll tokens) s of
     Success x _ -> Right x 
     Failure m   -> Left  m

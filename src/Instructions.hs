@@ -10,7 +10,7 @@ import Data.IORef
 import qualified Data.Vector as V 
 import Text.Printf 
 import Numeric
-
+import qualified Data.Map as Map
 -- | Vector update
 (//) = (V.//)
 
@@ -306,14 +306,14 @@ trim7  x = x .&. 0x0000007F
 trim8 :: U32 -> U32
 trim8  x = x .&. 0x000000FF 
 
--- trim9 :: U32 -> U32
--- trim9  x = x .&. 0x000001FF
+trim9 :: U32 -> U32
+trim9  x = x .&. 0x000001FF
 
--- trim11 :: U32 -> U32
--- trim11 x = x .&. 0x000007FF
+trim11 :: U32 -> U32
+trim11 x = x .&. 0x000007FF
 
--- trim19 :: U32 -> U32
--- trim19 x = x .&. 0x0007FFFF
+trim19 :: U32 -> U32
+trim19 x = x .&. 0x0007FFFF
 
 -- decodeR :: U32 -> Code 
 -- decodeR x = R op rd f3 rs1 rs2 f7
@@ -341,50 +341,45 @@ trim8  x = x .&. 0x000000FF
 --                   rs2  = trim5 (x .>>. 20)
 --                   immu = trim6 (x .>>. 25)
 
+            
+type RegisterFile = Map.Map U32 U32
 
--- bitPattern :: U32 -> String 
--- bitPattern x =
---     show ((x .>>. 31) .&. 1) ++  
---     show ((x .>>. 30) .&. 1) ++  
---     show ((x .>>. 29) .&. 1) ++  
---     show ((x .>>. 28) .&. 1) ++    
---     show ((x .>>. 27) .&. 1) ++  
---     show ((x .>>. 26) .&. 1) ++  
---     show ((x .>>. 25) .&. 1) ++  
---     show ((x .>>. 24) .&. 1) ++    
---     show ((x .>>. 23) .&. 1) ++  
---     show ((x .>>. 22) .&. 1) ++  
---     show ((x .>>. 21) .&. 1) ++  
---     show ((x .>>. 20) .&. 1) ++    
---     show ((x .>>. 19) .&. 1) ++  
---     show ((x .>>. 18) .&. 1) ++  
---     show ((x .>>. 17) .&. 1) ++  
---     show ((x .>>. 16) .&. 1) ++  
---     show ((x .>>. 15) .&. 1) ++  
---     show ((x .>>. 14) .&. 1) ++  
---     show ((x .>>. 13) .&. 1) ++  
---     show ((x .>>. 12) .&. 1) ++    
---     show ((x .>>. 11) .&. 1) ++  
---     show ((x .>>. 10) .&. 1) ++  
---     show ((x .>>. 9 ) .&. 1) ++  
---     show ((x .>>. 8 ) .&. 1) ++    
---     show ((x .>>. 7 ) .&. 1) ++  
---     show ((x .>>. 6 ) .&. 1) ++  
---     show ((x .>>. 5 ) .&. 1) ++  
---     show ((x .>>. 4 ) .&. 1) ++    
---     show ((x .>>. 3 ) .&. 1) ++  
---     show ((x .>>. 2 ) .&. 1) ++  
---     show ((x .>>. 1 ) .&. 1) ++  
---     show ((x .>>. 0 ) .&. 1)             
+data State = State { regFile  :: RegisterFile
+                   , ip       :: U32
+                   } deriving (Show)
 
+initState :: State 
+initState = State initRegisters 0 
 
--- -- data State = State { registers :: V.Vector U32 
--- --                    , ip        :: U32
--- --                    } deriving (Show)
+initRegisters :: RegisterFile
+initRegisters = Map.fromList $
+     zip [0..31] (replicate 31 0)
 
--- -- initState :: State 
--- -- initState = State r 0
--- --             where r = V.replicate 32 (0::U32)
+incInstPtr :: U32 -> State -> State
+incInstPtr i (State regFile ip) = State regFile (ip + i)
+
+getReg :: U32 -> State -> U32 
+getReg idx state = 
+    case (Map.lookup idx (regFile state)) of 
+        Just x   -> x 
+        Nothing  -> error "oh no"
+
+setReg :: U32 -> U32 -> State -> State
+setReg idx val (State reg ip) = State reg' ip
+     where reg' = Map.insert idx val reg 
+     
+eval :: Code -> State -> State 
+eval (RCode 0x33 rd 0 rs1 rs2 0) state =
+    let d  = getReg rd state
+        s1 = getReg rs1 state 
+        s2 = getReg rs2 state 
+    in  setReg d (s1+s2) state
+
+eval (RCode 0x33 rd 0 rs1 rs2 0x20) state =
+    let d  = getReg rd state
+        s1 = getReg rs1 state 
+        s2 = getReg rs2 state 
+    in  setReg d (s1-s2) state
 
 -- -- add :: Instruction -> State -> State 
 -- -- add (R _ rd _ rs rt _ ) state =  
