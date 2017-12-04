@@ -39,8 +39,8 @@ asInt x = fromIntegral x
 -----------------------------------------------------------
  
 
---u32 :: Parser W.Word32 
---u32 = integer >>= (\x -> return $ asU32 x)
+u32 :: Parser Char W.Word32 
+u32 = integer >>= (\x -> return $ asU32 x)
 
 -- Assembler temporary
 register :: Parser Token U32
@@ -61,7 +61,7 @@ pAdd = do
      rs1 <- register 
      _   <- match COMMA 
      rs2 <- register 
-     return $ R 0x33 rd 0 rs1 rs2 0 
+     return $ RCode 0x33 rd 0 rs1 rs2 0 
 
 pSubtract :: Parser Token Code
 pSubtract = do
@@ -71,27 +71,27 @@ pSubtract = do
      rs1 <- register 
      _   <- match COMMA 
      rs2 <- register 
-     return $ R 0x33 rd 0 rs1 rs2 0x20                                     
+     return $ RCode 0x33 rd 0 rs1 rs2 0x20                                     
 
 data ByteCode = ByteCode !U32 
 
 instance Show ByteCode where
     show (ByteCode x) = showHex x ""
 
--- pStoreByte :: Parser Token Code 
--- pStoreByte = do
---      _   <- match SB
---      rs1 <- register 
---      _   <- match COMMA 
---      imm <- u32 
---      _   <- match LPAREN
---      rs2 <- register 
---      _   <- match RPAREN 
---      let imml = trim5 imm 
---      let immu = trim7 (imm .>>. 5) 
---      let op   = 0x23
---      let f3   = 0x00
---      return $ S op imml f3 rs1 rs2 immu    
+pStoreByte :: Parser Token Code 
+pStoreByte = do
+      _   <- match SB
+      rs1 <- register 
+      _   <- match COMMA 
+      imm <- u32 
+      _   <- match LPAREN
+      rs2 <- register 
+      _   <- match RPAREN 
+      let imml = trim5 imm 
+      let immu = trim7 (imm .>>. 5) 
+      let op   = 0x23
+      let f3   = 0x00
+      return $ SCode op imml f3 rs1 rs2 immu    
     
 -- pStoreHalfWord :: Parser Code 
 -- pStoreHalfWord = do
@@ -198,30 +198,30 @@ instance Show ByteCode where
 --     return $ I op rd f3 rs1 imm      
 -- ----------------------------------------------------------------------------------
 
-data Code = R  { op  :: !U32
+data Code = RCode  { op  :: !U32
                , rd  :: !U32
                , f3  :: !U32
                , rs1 :: !U32
                , rs2 :: !U32
                , f7  :: !U32 }
-          | I  { op  :: !U32
+          | ICode  { op  :: !U32
                , rd  :: !U32
                , f3  :: !U32
                , rs1 :: !U32
                , imm :: !U32 }
-          | S  { op   :: !U32
+          | SCode  { op   :: !U32
                , imml :: !U32
                , f3   :: !U32
                , rs1  :: !U32
                , rs2  :: !U32
                , immu :: !U32 } 
-          | SB { op   :: !U32
+          | SBCode { op   :: !U32
                , imml :: !U32
                , f3   :: !U32
                , rs1  :: !U32
                , rs2  :: !U32
                , immu :: !U32 } 
-          | UJ { op  :: !U32 
+          | UJCode { op  :: !U32 
                , rd  :: !U32 
                , imm :: !U32 }
           deriving (Show, Eq)
@@ -241,7 +241,7 @@ data Code = R  { op  :: !U32
 -- codeType 0x63 = SBCode
 
 encode :: Code -> ByteCode
-encode (R op rd f3 rs1 rs2 f7) = ByteCode $ 
+encode (RCode op rd f3 rs1 rs2 f7) = ByteCode $ 
        (op  .<<. 0  ) .|. 
        (rd  .<<. 7  ) .|.
        (f3  .<<. 12 ) .|. 
@@ -249,14 +249,14 @@ encode (R op rd f3 rs1 rs2 f7) = ByteCode $
        (rs2 .<<. 20 ) .|.
        (f7  .<<. 25 ) 
 
-encode (I op rd f3 rs imm) = ByteCode $
+encode (ICode op rd f3 rs imm) = ByteCode $
        (op  .<<. 0 ) .|. 
        (rd  .<<. 7 ) .|.
        (f3  .<<. 12) .|.
        (rs  .<<. 15) .|. 
        (imm .<<. 20)
 
-encode (S op imml f3 rs1 rs2 immu) = ByteCode $
+encode (SCode op imml f3 rs1 rs2 immu) = ByteCode $
        (op   .<<. 0 ) .|. 
        (imml .<<. 7 ) .|.
        (f3   .<<. 12) .|.
@@ -264,7 +264,7 @@ encode (S op imml f3 rs1 rs2 immu) = ByteCode $
        (rs2  .<<. 20) .|. 
        (immu .<<. 25)
 
-encode (UJ op rd imm) = ByteCode $
+encode (UJCode op rd imm) = ByteCode $
        (op  .<<. 0) .|.
        (rd  .<<. 7) .|.
        (imm .<<. 12)

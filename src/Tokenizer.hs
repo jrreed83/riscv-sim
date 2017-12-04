@@ -5,6 +5,7 @@ module Tokenizer
 
 import qualified Data.Word as W 
 import ParserLib
+import qualified Data.Map as Map 
 
 data Token  = COMMA 
             | LPAREN
@@ -92,13 +93,14 @@ commentToken = (match ';') >>
                (match '\n') >>
                return COMMENT
 
-tokens = choice [ commaToken
+tokens = choice [ commaToken 
                 , lparenToken
                 , rparenToken
-                , orToken
+                , orToken 
                 , addToken
                 , regToken
                 , labelToken
+                , immToken
                 , lbToken 
                 , lhToken
                 , lwToken 
@@ -109,6 +111,7 @@ tokens = choice [ commaToken
                 , sdToken
                 , jalToken
                 , commentToken]
+                
 
 tokenize' :: Parser Char [Token]
 tokenize' = scanAll tokens   

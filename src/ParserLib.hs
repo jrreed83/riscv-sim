@@ -158,7 +158,7 @@ digit = (detect C.isDigit) >>= (\c -> return $ C.digitToInt c)
  
 
 integer :: Parser Char Int
-integer = fmap (\l -> (fn l)) (many digit)
+integer = fmap (\l -> (fn l)) (many1 digit)
           where fn l = read (map (head . show) l) :: Int
 
 whiteSpace :: Parser Char String 
