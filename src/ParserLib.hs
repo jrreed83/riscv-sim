@@ -153,13 +153,11 @@ string x = Parser $ \s ->
         then Success x (drop n s)
         else Failure "Error"
 
-digit :: Parser Char Int
-digit = (detect C.isDigit) >>= (\c -> return $ C.digitToInt c)
+digit :: Parser Char Char
+digit = (detect C.isDigit) >>= (\c -> return c)
  
-
 integer :: Parser Char Int
-integer = fmap (\l -> (fn l)) (many1 digit)
-          where fn l = read (map (head . show) l) :: Int
+integer = (many1 digit) >>= (\x -> return (read x :: Int))
 
 whiteSpace :: Parser Char String 
 whiteSpace = many1 (match ' ')

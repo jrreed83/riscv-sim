@@ -50,6 +50,11 @@ register = Parser $ \s ->
         _         -> Failure "Nothing"
     
 
+immediate :: Parser Token U32 
+immediate = Parser $ \s ->
+    case s of
+        (IMM x):t -> Success (asU32 x) t 
+        _         -> Failure "Nothing"
 --------------------------------------------------------------------------------
 
 
@@ -83,7 +88,7 @@ pStoreByte = do
       _   <- match SB
       rs1 <- register 
       _   <- match COMMA 
-      imm <- u32 
+      imm <- immediate 
       _   <- match LPAREN
       rs2 <- register 
       _   <- match RPAREN 
@@ -277,29 +282,29 @@ encode (UJCode op rd imm) = ByteCode $
 --            where opCode = trim7 (x .>>. 0)  
 
 
--- trim1 :: U32 -> U32 
--- trim1 x = x .&. 0x00000001 
+trim1 :: U32 -> U32 
+trim1 x = x .&. 0x00000001 
 
--- trim2 :: U32 -> U32 
--- trim2 x = x .&. 0x00000003
+trim2 :: U32 -> U32 
+trim2 x = x .&. 0x00000003
 
--- trim3 :: U32 -> U32
--- trim3 x = x .&. 0x00000007 
+trim3 :: U32 -> U32
+trim3 x = x .&. 0x00000007 
 
--- trim4 :: U32 -> U32
--- trim4 x = x .&. 0x0000000F 
+trim4 :: U32 -> U32
+trim4 x = x .&. 0x0000000F 
 
--- trim5 :: U32 -> U32
--- trim5 x = x .&. 0x0000001F 
+trim5 :: U32 -> U32
+trim5 x = x .&. 0x0000001F 
 
--- trim6 :: U32 -> U32
--- trim6 x = x .&. 0x0000003F 
+trim6 :: U32 -> U32
+trim6 x = x .&. 0x0000003F 
 
--- trim7 :: U32 -> U32
--- trim7  x = x .&. 0x0000007F 
+trim7 :: U32 -> U32
+trim7  x = x .&. 0x0000007F 
 
--- trim8 :: U32 -> U32
--- trim8  x = x .&. 0x000000FF 
+trim8 :: U32 -> U32
+trim8  x = x .&. 0x000000FF 
 
 -- trim9 :: U32 -> U32
 -- trim9  x = x .&. 0x000001FF

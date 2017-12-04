@@ -98,6 +98,7 @@ tokens = choice [ commaToken
                 , rparenToken
                 , orToken 
                 , addToken
+                , subToken
                 , regToken
                 , labelToken
                 , immToken
