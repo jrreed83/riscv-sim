@@ -4,17 +4,51 @@ where
 import ParserLib
 import Tokenizer
 import qualified Data.ByteString as B 
-import qualified Data.Word as W
 import Data.Bits 
 import Data.IORef 
 import qualified Data.Vector as V 
 import Text.Printf 
 import Numeric
 import qualified Data.Map as Map
--- | Vector update
-(//) = (V.//)
+import qualified Data.Word as W
 
-(!) = (V.!)
+type U8  = W.Word8 
+type U16 = W.Word16
+type U32 = W.Word32 
+type U64 = W.Word64 
+
+trim1 :: U32 -> U32 
+trim1 x = x .&. 0x00000001 
+
+trim2 :: U32 -> U32 
+trim2 x = x .&. 0x00000003
+
+trim3 :: U32 -> U32
+trim3 x = x .&. 0x00000007 
+
+trim4 :: U32 -> U32
+trim4 x = x .&. 0x0000000F 
+
+trim5 :: U32 -> U32
+trim5 x = x .&. 0x0000001F 
+
+trim6 :: U32 -> U32
+trim6 x = x .&. 0x0000003F 
+
+trim7 :: U32 -> U32
+trim7  x = x .&. 0x0000007F 
+
+trim8 :: U32 -> U32
+trim8  x = x .&. 0x000000FF 
+
+trim9 :: U32 -> U32
+trim9  x = x .&. 0x000001FF
+
+trim11 :: U32 -> U32
+trim11 x = x .&. 0x000007FF
+
+trim19 :: U32 -> U32
+trim19 x = x .&. 0x0007FFFF
 
 (.<<.) :: (Bits a) => a -> Int -> a 
 (.<<.) x i = shiftL x i 
@@ -23,10 +57,7 @@ import qualified Data.Map as Map
 (.>>.) x i = shiftR x i     
 ----------------------------------------------------------
 
-type U8  = W.Word8 
-type U16 = W.Word16
-type U32 = W.Word32 
-type U64 = W.Word64 
+
 
 asU32 :: (Integral a) => a -> U32 
 asU32 x = fromIntegral x
@@ -39,7 +70,7 @@ asInt x = fromIntegral x
 -----------------------------------------------------------
  
 
-u32 :: Parser Char W.Word32 
+u32 :: Parser Char U32 
 u32 = integer >>= (\x -> return $ asU32 x)
 
 -- Assembler temporary
@@ -57,34 +88,54 @@ immediate = Parser $ \s ->
         _         -> Failure "Nothing"
 --------------------------------------------------------------------------------
 
-
-pAdd :: Parser Token Code 
-pAdd = do
+addParse :: Parser Token ByteCode
+addParse = do
      _   <- match ADD
      rd  <- register
      _   <- match COMMA
      rs1 <- register 
      _   <- match COMMA 
      rs2 <- register 
-     return $ RCode 0x33 rd 0 rs1 rs2 0 
+     let op = 0x33
+     let f3 = 0
+     let f7 = 0
+     return $ encodeR (op, rd, f3, rs1, rs2, f7) 
 
-pSubtract :: Parser Token Code
-pSubtract = do
+encodeR :: (U32,U32,U32,U32,U32,U32) -> ByteCode
+encodeR (op,rd,f3,rs1,rs2,f7) = ByteCode $
+   (op  .<<. 0  ) .|. 
+   (rd  .<<. 7  ) .|.
+   (f3  .<<. 12 ) .|. 
+   (rs1 .<<. 15 ) .|.
+   (rs2 .<<. 20 ) .|.
+   (f7  .<<. 25 ) 
+
+subParse :: Parser Token ByteCode
+subParse = do
      _   <- match SUB
      rd  <- register
      _   <- match COMMA 
      rs1 <- register 
      _   <- match COMMA 
      rs2 <- register 
-     return $ RCode 0x33 rd 0 rs1 rs2 0x20                                     
+     let op = 0x33
+     let f3 = 0
+     let f7 = 0x20
+     return $ ByteCode 0
+--       (op  .<<. 0  ) .|. 
+--       (rd  .<<. 7  ) .|.
+--       (f3  .<<. 12 ) .|. 
+--       (rs1 .<<. 15 ) .|.
+--       (rs2 .<<. 20 ) .|.
+--       (f7  .<<. 25 )                                        
 
 data ByteCode = ByteCode !U32 
 
 instance Show ByteCode where
     show (ByteCode x) = showHex x ""
 
-pStoreByte :: Parser Token Code 
-pStoreByte = do
+sbParse:: Parser Token ByteCode 
+sbParse = do
       _   <- match SB
       rs1 <- register 
       _   <- match COMMA 
@@ -92,11 +143,17 @@ pStoreByte = do
       _   <- match LPAREN
       rs2 <- register 
       _   <- match RPAREN 
+      let op   = 0x23      
       let imml = trim5 imm 
       let immu = trim7 (imm .>>. 5) 
-      let op   = 0x23
       let f3   = 0x00
-      return $ SCode op imml f3 rs1 rs2 immu    
+      return $ ByteCode 0
+--       (op   .<<. 0 ) .|. 
+--       (imml .<<. 7 ) .|.
+--       (f3   .<<. 12) .|.
+--       (rs1  .<<. 15) .|. 
+--       (rs2  .<<. 20) .|. 
+--       (immu .<<. 25)        
     
 -- pStoreHalfWord :: Parser Code 
 -- pStoreHalfWord = do
@@ -281,39 +338,6 @@ encode (UJCode op rd imm) = ByteCode $
 --                 SCode -> decodeS x
 --            where opCode = trim7 (x .>>. 0)  
 
-
-trim1 :: U32 -> U32 
-trim1 x = x .&. 0x00000001 
-
-trim2 :: U32 -> U32 
-trim2 x = x .&. 0x00000003
-
-trim3 :: U32 -> U32
-trim3 x = x .&. 0x00000007 
-
-trim4 :: U32 -> U32
-trim4 x = x .&. 0x0000000F 
-
-trim5 :: U32 -> U32
-trim5 x = x .&. 0x0000001F 
-
-trim6 :: U32 -> U32
-trim6 x = x .&. 0x0000003F 
-
-trim7 :: U32 -> U32
-trim7  x = x .&. 0x0000007F 
-
-trim8 :: U32 -> U32
-trim8  x = x .&. 0x000000FF 
-
-trim9 :: U32 -> U32
-trim9  x = x .&. 0x000001FF
-
-trim11 :: U32 -> U32
-trim11 x = x .&. 0x000007FF
-
-trim19 :: U32 -> U32
-trim19 x = x .&. 0x0007FFFF
 
 -- decodeR :: U32 -> Code 
 -- decodeR x = R op rd f3 rs1 rs2 f7

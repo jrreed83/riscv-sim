@@ -1,6 +1,5 @@
 module ParserLib
-    (
-      Parser(..)
+    ( Parser(..)
     , Result(..)
     , success
     , string
