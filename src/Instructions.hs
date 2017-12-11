@@ -88,8 +88,8 @@ immediate = Parser $ \s ->
         _         -> Failure "Nothing"
 --------------------------------------------------------------------------------
 
-addParse :: Parser Token ByteCode
-addParse = do
+parseAdd :: Parser Token ByteCode
+parseAdd = do
      _   <- match ADD
      rd  <- register
      _   <- match COMMA
@@ -99,10 +99,16 @@ addParse = do
      let op = 0x33
      let f3 = 0
      let f7 = 0
-     return $ encodeR (op, rd, f3, rs1, rs2, f7) 
+     return $ encodeR op rd f3 rs1 rs2 f7
 
-encodeR :: (U32,U32,U32,U32,U32,U32) -> ByteCode
-encodeR (op,rd,f3,rs1,rs2,f7) = ByteCode $
+encodeR :: U32  -- op
+        -> U32  -- rd
+        -> U32  -- f3
+        -> U32  -- rs1 
+        -> U32  -- rs2
+        -> U32  -- f7
+        -> ByteCode 
+encodeR op rd f3 rs1 rs2 f7 = ByteCode $
    (op  .<<. 0  ) .|. 
    (rd  .<<. 7  ) .|.
    (f3  .<<. 12 ) .|. 
@@ -110,8 +116,8 @@ encodeR (op,rd,f3,rs1,rs2,f7) = ByteCode $
    (rs2 .<<. 20 ) .|.
    (f7  .<<. 25 ) 
 
-subParse :: Parser Token ByteCode
-subParse = do
+subtraction :: Parser Token ByteCode
+subtraction = do
      _   <- match SUB
      rd  <- register
      _   <- match COMMA 
@@ -121,13 +127,7 @@ subParse = do
      let op = 0x33
      let f3 = 0
      let f7 = 0x20
-     return $ ByteCode 0
---       (op  .<<. 0  ) .|. 
---       (rd  .<<. 7  ) .|.
---       (f3  .<<. 12 ) .|. 
---       (rs1 .<<. 15 ) .|.
---       (rs2 .<<. 20 ) .|.
---       (f7  .<<. 25 )                                        
+     return $ encodeR op rd f3 rs1 rs2 f7
 
 data ByteCode = ByteCode !U32 
 
