@@ -3,17 +3,12 @@ import Test.QuickCheck
 import Control.Exception (evaluate)
 import qualified ParserLib as P
 
+successWithCharacter :: Char -> [Char] -> Bool
+successWithCharacter x xs = (P.run (P.success x) xs) == (P.Success x xs) 
+
 main :: IO ()
 main = hspec $ do
-  describe "Prelude.head" $ do
-    it "returns the first element of a list" $ do
-      head [23 ..] `shouldBe` (23 :: Int)
-
-    it "returns the first element of an *arbitrary* list" $
-      property $ \x xs -> head (x:xs) == (x :: Int)
-
-    it "throws an exception if used with an empty list" $ do
-      evaluate (head []) `shouldThrow` anyException
-  describe "success" $ do
-    it " returns foo" $
+  describe "success parser" $ do
+    it "returns foo" $
       (P.run (P.success 'a') "abab") `shouldBe` (P.Success 'a' "abab") 
+    it "should always return the passed in character" $ property successWithCharacter
