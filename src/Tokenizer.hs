@@ -1,97 +1,74 @@
-module Tokenizer 
-     ( Token(..)
-     , tokenize 
-     ) where 
+module Tokenizer ( tokenize ) where 
 
 import qualified Data.Word as W 
 import ParserLib
 import qualified Data.Map as Map 
-
-data Token  = COMMA 
-            | LPAREN
-            | RPAREN 
-            | REG Int
-            | IMM Int
-            | LABEL String
-            | ADD 
-            | SUB 
-            | AND 
-            | OR 
-            | LB
-            | LH 
-            | LW 
-            | LD 
-            | SB 
-            | SH
-            | SW 
-            | SD
-            | JAL
-            | COMMENT
-            deriving (Show, Eq)
+import qualified Tokens as T 
 
 
-commaToken :: Parser Char Token
-commaToken = (match ',') >> return COMMA   
 
-lparenToken :: Parser Char Token 
-lparenToken = (match '(')  >> return LPAREN
+commaToken :: Parser Char T.Token
+commaToken = (match ',') >> return T.COMMA   
 
-rparenToken :: Parser Char Token 
-rparenToken = (match ')') >> return RPAREN
+lparenToken :: Parser Char T.Token 
+lparenToken = (match '(')  >> return T.LPAREN
 
-regToken :: Parser Char Token 
+rparenToken :: Parser Char T.Token 
+rparenToken = (match ')') >> return T.RPAREN
+
+regToken :: Parser Char T.Token 
 regToken = (match 'x') *> (integer >>= (\i -> 
             if i > 0 && i < 32 
-            then return $ REG i 
+            then return $ T.REG i 
             else failure "Registers are labeled from x0 to x31"))
 
-immToken :: Parser Char Token 
-immToken = (integer >>= (\i -> return $ IMM i))
+immToken :: Parser Char T.Token 
+immToken = (integer >>= (\i -> return $ T.IMM i))
 
-orToken :: Parser Char Token 
-orToken = (string "or") >> return OR
+orToken :: Parser Char T.Token 
+orToken = (string "or") >> return T.OR
 
-addToken :: Parser Char Token 
-addToken = (string "add") >> return ADD
+addToken :: Parser Char T.Token 
+addToken = (string "add") >> return T.ADD
 
-subToken :: Parser Char Token 
-subToken = (string "sub") >> return SUB 
+subToken :: Parser Char T.Token 
+subToken = (string "sub") >> return T.SUB 
 
-lbToken :: Parser Char Token 
-lbToken = (string "lb") >> return LB 
+lbToken :: Parser Char T.Token 
+lbToken = (string "lb") >> return T.LB 
 
-lhToken :: Parser Char Token 
-lhToken = (string "lh") >> return LH 
+lhToken :: Parser Char T.Token 
+lhToken = (string "lh") >> return T.LH 
 
-lwToken :: Parser Char Token 
-lwToken = (string "lw") >> return LW 
+lwToken :: Parser Char T.Token 
+lwToken = (string "lw") >> return T.LW 
 
-ldToken :: Parser Char Token 
-ldToken = (string "ld") >> return LD 
+ldToken :: Parser Char T.Token 
+ldToken = (string "ld") >> return T.LD 
 
-sbToken :: Parser Char Token 
-sbToken = (string "sb") >> return SB 
+sbToken :: Parser Char T.Token 
+sbToken = (string "sb") >> return T.SB 
 
-shToken :: Parser Char Token 
-shToken = (string "sh") >> return SH 
+shToken :: Parser Char T.Token 
+shToken = (string "sh") >> return T.SH 
 
-swToken :: Parser Char Token 
-swToken = (string "sw") >> return SW 
+swToken :: Parser Char T.Token 
+swToken = (string "sw") >> return T.SW 
 
-sdToken :: Parser Char Token 
-sdToken = (string "sd") >> return SD 
+sdToken :: Parser Char T.Token 
+sdToken = (string "sd") >> return T.SD 
 
-labelToken :: Parser Char Token 
-labelToken = (alphaNumeric <* (string ":")) >>= (\s -> return $ LABEL s) 
+labelToken :: Parser Char T.Token 
+labelToken = (alphaNumeric <* (string ":")) >>= (\s -> return $ T.LABEL s) 
 
-jalToken :: Parser Char Token 
-jalToken = (string "jal") >> return JAL 
+jalToken :: Parser Char T.Token 
+jalToken = (string "jal") >> return T.JAL 
 
-commentToken :: Parser Char Token 
+commentToken :: Parser Char T.Token 
 commentToken = (match ';') >>
                (many (alphaNumeric <|> whiteSpace)) >> 
                (match '\n') >>
-               return COMMENT
+               return T.COMMENT
 
 tokens = choice [ commaToken 
                 , lparenToken
@@ -113,7 +90,7 @@ tokens = choice [ commaToken
                 , jalToken
                 , commentToken]
                 
-tokenize :: String -> Either String [Token]
+tokenize :: String -> Either String [T.Token]
 tokenize s = case run (scanAll tokens) s of
     Success x _ -> Right x 
     Failure m   -> Left  m
