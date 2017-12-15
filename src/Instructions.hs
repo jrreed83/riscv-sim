@@ -10,14 +10,15 @@ where
 --import Text.Printf 
 --import Numeric
 --import qualified Data.Map as Map
---import qualified Data.Word as W
+import qualified Data.Word as W
 --import qualified Tokens as T 
-import qualified Data.Vector as V 
+import qualified Data.Vector  as V 
+import qualified Data.HashMap as M
 
--- type U8  = W.Word8 
--- type U16 = W.Word16
--- type U32 = W.Word32 
--- type U64 = W.Word64 
+type U8  = W.Word8 
+type U16 = W.Word16
+type U32 = W.Word32 
+type U64 = W.Word64 
 
 -- trim1 :: U32 -> U32 
 -- trim1 x = x .&. 0x00000001 
@@ -89,28 +90,44 @@ import qualified Data.Vector as V
 --        (T.IMM x):t -> Success (asU32 x) t 
 --        _         -> Failure "Nothing"
 --------------------------------------------------------------------------------
-data Instruction = I_ADD Int Int Int
-                 | I_SUB Int Int Int
-                 | I_STR Int Int
+data Instruction = I_ADD  Int Int Int
+                 | I_SUB  Int Int Int
+                 | I_STR  Int Int
+                 | I_LOAD Int Int
                  deriving (Show, Eq)
 
 (!) = (V.!)
 (//) = (V.//)
 
-data State = State { reg :: V.Vector Int } deriving (Show)
+data State = State 
+    { reg :: V.Vector Int
+    , mem :: M.Map Int Int
+    } deriving (Show)
+
+initRegisters :: V.Vector Int
+initRegisters = V.fromList [0,0,0,0,0]
+
+initMemory :: M.Map Int Int
+initMemory = M.empty
 
 initState :: State 
-initState = State $ V.fromList [0,0,0,0,0]
+initState = State initRegisters initMemory
 
 execute :: Instruction -> State -> State 
 execute (I_ADD rd rs rt) state = 
     let x      = (reg state) ! rs 
         y      = (reg state) ! rt 
         state' = (reg state) // [(rd, (x+y))]
-    in State state' 
+    in State state' (mem state)
+
 execute (I_STR rd x) state = 
-    let state' = (reg state) // [(rd, x)]
-    in  State state'     
+    let val  = (reg state) ! rd
+        mem' = M.insert x val (mem state) 
+    in  State (reg state) mem' 
+
+execute (I_LOAD rd const) state = 
+    let state' = (reg state) // [(rd, const)]
+    in  State state' (mem state)  
 --------------------------------------------------------------------------------
 -- parseAdd :: Parser T.Token ByteCode
 -- parseAdd = do
